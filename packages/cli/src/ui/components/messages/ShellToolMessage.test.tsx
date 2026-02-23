@@ -290,4 +290,23 @@ describe('<ShellToolMessage />', () => {
       expect(lastFrame()).toMatchSnapshot();
     });
   });
+
+  describe('Description Wrapping', () => {
+    it('wraps long descriptions for shell tools', async () => {
+      const longCommand =
+        'echo "This is a very long command that should be wrapped instead of truncated because the user wants to see the full command always. It goes on and on and on and on and on and on and on and on and on and on."';
+      const { lastFrame, waitUntilReady } = renderShell({
+        name: SHELL_COMMAND_NAME,
+        description: longCommand,
+        terminalWidth: 40,
+        status: CoreToolCallStatus.Executing,
+      });
+
+      await waitUntilReady();
+      const frame = lastFrame();
+      expect(frame).toContain('very long command that should be');
+      expect(frame).toContain('wrapped instead of truncated');
+      expect(frame).toContain('on and on."');
+    });
+  });
 });
