@@ -238,9 +238,19 @@ export const ToolInfo: React.FC<ToolInfoProps> = ({
     }
   }
 
+  const isShell = isShellTool(name);
+
   return (
-    <Box overflow="hidden" height={1} flexGrow={1} flexShrink={1}>
-      <Text strikethrough={status === ToolCallStatus.Canceled} wrap="truncate">
+    <Box
+      overflow={isShell ? undefined : 'hidden'}
+      height={isShell ? undefined : 1}
+      flexGrow={1}
+      flexShrink={1}
+    >
+      <Text
+        strikethrough={status === ToolCallStatus.Canceled}
+        wrap={isShell ? 'wrap' : 'truncate'}
+      >
         <Text color={nameColor} bold>
           {name}
         </Text>
