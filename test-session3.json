@@ -1,0 +1,17 @@
+{
+  "messages": [
+    {
+      "id": "1",
+      "type": "user",
+      "content": [{"text": "Hello world!"}]
+    },
+    {
+      "id": "2",
+      "type": "gemini",
+      "thoughts": [
+        {"thought": "The user is saying hello."}
+      ],
+      "content": [{"text": "Hi there! How can I help you today?"}]
+    }
+  ]
+}
