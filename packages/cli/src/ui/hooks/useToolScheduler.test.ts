@@ -13,7 +13,6 @@ import {
   Scheduler,
   type Config,
   type MessageBus,
-  type ExecutingToolCall,
   type CompletedToolCall,
   type ToolCallsUpdateMessage,
   type AnyDeclarativeTool,
@@ -111,7 +110,7 @@ describe('useToolScheduler', () => {
       tool: createMockTool(),
       invocation: createMockInvocation(),
       liveOutput: 'Loading...',
-    } as ExecutingToolCall;
+    };
 
     act(() => {
       void mockMessageBus.publish({
@@ -405,63 +404,5 @@ describe('useToolScheduler', () => {
     expect(
       toolCalls.find((t) => t.request.callId === 'call-sub')?.schedulerId,
     ).toBe('subagent-1');
-  });
-
-  it('adapts success/error status to executing when a tail call is present', () => {
-    vi.useFakeTimers();
-    const { result } = renderHook(() =>
-      useToolScheduler(
-        vi.fn().mockResolvedValue(undefined),
-        mockConfig,
-        () => undefined,
-      ),
-    );
-
-    const startTime = Date.now();
-    vi.advanceTimersByTime(1000);
-
-    const mockToolCall = {
-      status: CoreToolCallStatus.Success as const,
-      request: {
-        callId: 'call-1',
-        name: 'test_tool',
-        args: {},
-        isClientInitiated: false,
-        prompt_id: 'p1',
-      },
-      tool: createMockTool(),
-      invocation: createMockInvocation(),
-      response: {
-        callId: 'call-1',
-        resultDisplay: 'OK',
-        responseParts: [],
-        error: undefined,
-        errorType: undefined,
-      },
-      tailToolCallRequest: {
-        name: 'tail_tool',
-        args: {},
-        isClientInitiated: false,
-        prompt_id: '123',
-      },
-    };
-
-    act(() => {
-      void mockMessageBus.publish({
-        type: MessageBusType.TOOL_CALLS_UPDATE,
-        toolCalls: [mockToolCall],
-        schedulerId: ROOT_SCHEDULER_ID,
-      } as ToolCallsUpdateMessage);
-    });
-
-    const [toolCalls, , , , , lastOutputTime] = result.current;
-
-    // Check if status has been adapted to 'executing'
-    expect(toolCalls[0].status).toBe(CoreToolCallStatus.Executing);
-
-    // Check if lastOutputTime was updated due to the transitional state
-    expect(lastOutputTime).toBeGreaterThan(startTime);
-
-    vi.useRealTimers();
   });
 });

@@ -45,13 +45,6 @@ function getPlatformArch() {
       shellcheck: 'darwin.aarch64',
     };
   }
-  if (platform === 'win32' && arch === 'x64') {
-    return {
-      actionlint: 'windows_amd64',
-      // shellcheck is not used for Windows since it uses the .zip release
-      // which has a consistent name across architectures
-    };
-  }
   throw new Error(`Unsupported platform/architecture: ${platform}/${arch}`);
 }
 
@@ -65,52 +58,10 @@ const pythonVenvPythonPath = join(
   process.platform === 'win32' ? 'python.exe' : 'python',
 );
 
-const isWindows = process.platform === 'win32';
-
-const actionlintCheck = isWindows
-  ? `where actionlint 2>nul`
-  : 'command -v actionlint';
-
-const actionlintInstaller = isWindows
-  ? `powershell -Command "` +
-    `New-Item -ItemType Directory -Force -Path '${TEMP_DIR}/actionlint' | Out-Null; ` +
-    `Invoke-WebRequest -Uri 'https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_${platformArch.actionlint}.zip' -OutFile '${TEMP_DIR}/.actionlint.zip'; ` +
-    `Add-Type -AssemblyName System.IO.Compression.FileSystem; ` +
-    `[System.IO.Compression.ZipFile]::ExtractToDirectory('${TEMP_DIR}/.actionlint.zip', '${TEMP_DIR}/actionlint')"`
-  : `
-      mkdir -p "${TEMP_DIR}/actionlint"
-      curl -sSLo "${TEMP_DIR}/.actionlint.tgz" "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_${platformArch.actionlint}.tar.gz"
-      tar -xzf "${TEMP_DIR}/.actionlint.tgz" -C "${TEMP_DIR}/actionlint"
-    `;
-
-const shellcheckCheck = isWindows
-  ? `where shellcheck 2>nul`
-  : 'command -v shellcheck';
-
-const shellcheckInstaller = isWindows
-  ? `powershell -Command "` +
-    `Invoke-WebRequest -Uri 'https://github.com/koalaman/shellcheck/releases/download/v${SHELLCHECK_VERSION}/shellcheck-v${SHELLCHECK_VERSION}.zip' -OutFile '${TEMP_DIR}/.shellcheck.zip'; ` +
-    `Add-Type -AssemblyName System.IO.Compression.FileSystem; ` +
-    `[System.IO.Compression.ZipFile]::ExtractToDirectory('${TEMP_DIR}/.shellcheck.zip', '${TEMP_DIR}/shellcheck')"`
-  : `
-      mkdir -p "${TEMP_DIR}/shellcheck"
-      curl -sSLo "${TEMP_DIR}/.shellcheck.txz" "https://github.com/koalaman/shellcheck/releases/download/v${SHELLCHECK_VERSION}/shellcheck-v${SHELLCHECK_VERSION}.${platformArch.shellcheck}.tar.xz"
-      tar -xf "${TEMP_DIR}/.shellcheck.txz" -C "${TEMP_DIR}/shellcheck" --strip-components=1
-    `;
-
-const yamllintCheck = isWindows
-  ? `if exist "${PYTHON_VENV_PATH}\\Scripts\\yamllint.exe" (exit 0) else (exit 1)`
-  : `test -x "${PYTHON_VENV_PATH}/bin/yamllint"`;
-
-const yamllintInstaller = isWindows
-  ? `python -m venv "${PYTHON_VENV_PATH}" && ` +
-    `"${pythonVenvPythonPath}" -m pip install --upgrade pip && ` +
-    `"${pythonVenvPythonPath}" -m pip install "yamllint==${YAMLLINT_VERSION}" --index-url https://pypi.org/simple`
-  : `
-    python3 -m venv "${PYTHON_VENV_PATH}" && \
-    "${pythonVenvPythonPath}" -m pip install --upgrade pip && \
-    "${pythonVenvPythonPath}" -m pip install "yamllint==${YAMLLINT_VERSION}" --index-url https://pypi.org/simple
-  `;
+const yamllintCheck =
+  process.platform === 'win32'
+    ? `if exist "${PYTHON_VENV_PATH}\\Scripts\\yamllint.exe" (exit 0) else (exit 1)`
+    : `test -x "${PYTHON_VENV_PATH}/bin/yamllint"`;
 
 /**
  * @typedef {{
@@ -125,8 +76,12 @@ const yamllintInstaller = isWindows
  */
 const LINTERS = {
   actionlint: {
-    check: actionlintCheck,
-    installer: actionlintInstaller,
+    check: 'command -v actionlint',
+    installer: `
+      mkdir -p "${TEMP_DIR}/actionlint"
+      curl -sSLo "${TEMP_DIR}/.actionlint.tgz" "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_${platformArch.actionlint}.tar.gz"
+      tar -xzf "${TEMP_DIR}/.actionlint.tgz" -C "${TEMP_DIR}/actionlint"
+    `,
     run: `
       actionlint \
         -color \
@@ -137,8 +92,12 @@ const LINTERS = {
     `,
   },
   shellcheck: {
-    check: shellcheckCheck,
-    installer: shellcheckInstaller,
+    check: 'command -v shellcheck',
+    installer: `
+      mkdir -p "${TEMP_DIR}/shellcheck"
+      curl -sSLo "${TEMP_DIR}/.shellcheck.txz" "https://github.com/koalaman/shellcheck/releases/download/v${SHELLCHECK_VERSION}/shellcheck-v${SHELLCHECK_VERSION}.${platformArch.shellcheck}.tar.xz"
+      tar -xf "${TEMP_DIR}/.shellcheck.txz" -C "${TEMP_DIR}/shellcheck" --strip-components=1
+    `,
     run: `
       git ls-files | grep -E '^([^.]+|.*\\.(sh|zsh|bash))' | xargs file --mime-type \
         | grep "text/x-shellscript" | awk '{ print substr($1, 1, length($1)-1) }' \
@@ -153,7 +112,11 @@ const LINTERS = {
   },
   yamllint: {
     check: yamllintCheck,
-    installer: yamllintInstaller,
+    installer: `
+    python3 -m venv "${PYTHON_VENV_PATH}" && \
+    "${pythonVenvPythonPath}" -m pip install --upgrade pip && \
+    "${pythonVenvPythonPath}" -m pip install "yamllint==${YAMLLINT_VERSION}" --index-url https://pypi.org/simple
+  `,
     run: "git ls-files | grep -E '\\.(yaml|yml)' | xargs yamllint --format github",
   },
 };
@@ -162,20 +125,8 @@ function runCommand(command, stdio = 'inherit') {
   try {
     const env = { ...process.env };
     const nodeBin = join(process.cwd(), 'node_modules', '.bin');
-    const sep = isWindows ? ';' : ':';
-    const pythonBin = isWindows
-      ? join(PYTHON_VENV_PATH, 'Scripts')
-      : join(PYTHON_VENV_PATH, 'bin');
-    // Windows sometimes uses 'Path' instead of 'PATH'
-    const pathKey = 'Path' in env ? 'Path' : 'PATH';
-    env[pathKey] = [
-      nodeBin,
-      join(TEMP_DIR, 'actionlint'),
-      join(TEMP_DIR, 'shellcheck'),
-      pythonBin,
-      env[pathKey],
-    ].join(sep);
-    execSync(command, { stdio, env, shell: true });
+    env.PATH = `${nodeBin}:${TEMP_DIR}/actionlint:${TEMP_DIR}/shellcheck:${PYTHON_VENV_PATH}/bin:${env.PATH}`;
+    execSync(command, { stdio, env });
     return true;
   } catch (_e) {
     return false;

@@ -78,23 +78,22 @@ describe('Frugal reads eval', () => {
       ).toBe(true);
 
       let totalLinesRead = 0;
-      const readRanges: { start_line: number; end_line: number }[] = [];
+      const readRanges: { offset: number; limit: number }[] = [];
 
       for (const call of targetFileReads) {
         const args = JSON.parse(call.toolRequest.args);
 
         expect(
-          args.end_line,
-          'Agent read the entire file (missing end_line) instead of using ranged read',
+          args.limit,
+          'Agent read the entire file (missing limit) instead of using ranged read',
         ).toBeDefined();
 
-        const end_line = args.end_line;
-        const start_line = args.start_line ?? 1;
-        const linesRead = end_line - start_line + 1;
-        totalLinesRead += linesRead;
-        readRanges.push({ start_line, end_line });
+        const limit = args.limit;
+        const offset = args.offset ?? 0;
+        totalLinesRead += limit;
+        readRanges.push({ offset, limit });
 
-        expect(linesRead, 'Agent read too many lines at once').toBeLessThan(
+        expect(args.limit, 'Agent read too many lines at once').toBeLessThan(
           1001,
         );
       }
@@ -109,7 +108,7 @@ describe('Frugal reads eval', () => {
       const errorLines = [500, 510, 520];
       for (const line of errorLines) {
         const covered = readRanges.some(
-          (range) => line >= range.start_line && line <= range.end_line,
+          (range) => line >= range.offset && line < range.offset + range.limit,
         );
         expect(covered, `Agent should have read around line ${line}`).toBe(
           true,
@@ -192,8 +191,8 @@ describe('Frugal reads eval', () => {
       for (const call of targetFileReads) {
         const args = JSON.parse(call.toolRequest.args);
         expect(
-          args.end_line,
-          'Agent should have used ranged read (end_line) to save tokens',
+          args.limit,
+          'Agent should have used ranged read (limit) to save tokens',
         ).toBeDefined();
       }
     },
@@ -254,7 +253,7 @@ describe('Frugal reads eval', () => {
       // and just read the whole file to be efficient with tool calls.
       const readEntireFile = targetFileReads.some((call) => {
         const args = JSON.parse(call.toolRequest.args);
-        return args.end_line === undefined;
+        return args.limit === undefined;
       });
 
       expect(

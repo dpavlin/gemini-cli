@@ -6,7 +6,6 @@
 
 import type { GenerateContentConfig } from '@google/genai';
 import type { Config } from '../config/config.js';
-import { AuthType } from '../core/contentGenerator.js';
 import type {
   FailureKind,
   FallbackAction,
@@ -45,15 +44,9 @@ export function resolvePolicyChain(
   const configuredModel = config.getModel();
 
   let chain;
-  const useGemini31 = config.getGemini31LaunchedSync?.() ?? false;
-  const useCustomToolModel =
-    useGemini31 &&
-    config.getContentGeneratorConfig?.()?.authType === AuthType.USE_GEMINI;
-
   const resolvedModel = resolveModel(
     modelFromConfig,
-    useGemini31,
-    useCustomToolModel,
+    config.getGemini31LaunchedSync?.() ?? false,
   );
   const isAutoPreferred = preferredModel ? isAutoModel(preferredModel) : false;
   const isAutoConfigured = isAutoModel(configuredModel);
@@ -74,8 +67,6 @@ export function resolvePolicyChain(
       chain = getModelPolicyChain({
         previewEnabled,
         userTier: config.getUserTier(),
-        useGemini31,
-        useCustomToolModel,
       });
     } else {
       // User requested Gemini 3 but has no access. Proactively downgrade
@@ -83,8 +74,6 @@ export function resolvePolicyChain(
       return getModelPolicyChain({
         previewEnabled: false,
         userTier: config.getUserTier(),
-        useGemini31,
-        useCustomToolModel,
       });
     }
   } else {
@@ -214,9 +203,7 @@ export function applyModelSelection(
     generateContentConfig = fallbackResolved.generateContentConfig;
   }
 
-  if (modelConfigKey.isChatModel) {
-    config.setActiveModel(finalModel);
-  }
+  config.setActiveModel(finalModel);
 
   if (selection.attempts && options.consumeAttempt !== false) {
     config.getModelAvailabilityService().consumeStickyAttempt(finalModel);

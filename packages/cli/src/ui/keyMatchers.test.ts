@@ -352,6 +352,7 @@ describe('keyMatchers', () => {
         createKey('l', { ctrl: true }),
       ],
     },
+
     // Shell commands
     {
       command: Command.REVERSE_SEARCH,

@@ -52,7 +52,6 @@ describe('ToolConfirmationMessage', () => {
         callId="test-call-id"
         confirmationDetails={confirmationDetails}
         config={mockConfig}
-        availableTerminalHeight={30}
         terminalWidth={80}
       />,
     );
@@ -78,7 +77,6 @@ describe('ToolConfirmationMessage', () => {
         callId="test-call-id"
         confirmationDetails={confirmationDetails}
         config={mockConfig}
-        availableTerminalHeight={30}
         terminalWidth={80}
       />,
     );
@@ -101,7 +99,6 @@ describe('ToolConfirmationMessage', () => {
         callId="test-call-id"
         confirmationDetails={confirmationDetails}
         config={mockConfig}
-        availableTerminalHeight={30}
         terminalWidth={80}
       />,
     );
@@ -131,7 +128,6 @@ describe('ToolConfirmationMessage', () => {
         callId="test-call-id"
         confirmationDetails={confirmationDetails}
         config={mockConfig}
-        availableTerminalHeight={30}
         terminalWidth={80}
       />,
     );
@@ -161,7 +157,6 @@ describe('ToolConfirmationMessage', () => {
         callId="test-call-id"
         confirmationDetails={confirmationDetails}
         config={mockConfig}
-        availableTerminalHeight={30}
         terminalWidth={80}
       />,
     );
@@ -190,7 +185,6 @@ describe('ToolConfirmationMessage', () => {
         callId="test-call-id"
         confirmationDetails={confirmationDetails}
         config={mockConfig}
-        availableTerminalHeight={30}
         terminalWidth={80}
       />,
     );
@@ -219,7 +213,6 @@ describe('ToolConfirmationMessage', () => {
         callId="test-call-id"
         confirmationDetails={confirmationDetails}
         config={mockConfig}
-        availableTerminalHeight={30}
         terminalWidth={80}
       />,
     );
@@ -300,7 +293,6 @@ describe('ToolConfirmationMessage', () => {
             callId="test-call-id"
             confirmationDetails={details}
             config={mockConfig}
-            availableTerminalHeight={30}
             terminalWidth={80}
           />,
         );
@@ -321,7 +313,6 @@ describe('ToolConfirmationMessage', () => {
             callId="test-call-id"
             confirmationDetails={details}
             config={mockConfig}
-            availableTerminalHeight={30}
             terminalWidth={80}
           />,
         );
@@ -355,7 +346,6 @@ describe('ToolConfirmationMessage', () => {
           callId="test-call-id"
           confirmationDetails={editConfirmationDetails}
           config={mockConfig}
-          availableTerminalHeight={30}
           terminalWidth={80}
         />,
         {
@@ -381,7 +371,6 @@ describe('ToolConfirmationMessage', () => {
           callId="test-call-id"
           confirmationDetails={editConfirmationDetails}
           config={mockConfig}
-          availableTerminalHeight={30}
           terminalWidth={80}
         />,
         {
@@ -425,7 +414,6 @@ describe('ToolConfirmationMessage', () => {
           callId="test-call-id"
           confirmationDetails={editConfirmationDetails}
           config={mockConfig}
-          availableTerminalHeight={30}
           terminalWidth={80}
         />,
       );
@@ -452,7 +440,6 @@ describe('ToolConfirmationMessage', () => {
           callId="test-call-id"
           confirmationDetails={editConfirmationDetails}
           config={mockConfig}
-          availableTerminalHeight={30}
           terminalWidth={80}
         />,
       );
@@ -479,7 +466,6 @@ describe('ToolConfirmationMessage', () => {
           callId="test-call-id"
           confirmationDetails={editConfirmationDetails}
           config={mockConfig}
-          availableTerminalHeight={30}
           terminalWidth={80}
         />,
       );
@@ -505,7 +491,6 @@ describe('ToolConfirmationMessage', () => {
         callId="test-call-id"
         confirmationDetails={confirmationDetails}
         config={mockConfig}
-        availableTerminalHeight={30}
         terminalWidth={80}
       />,
     );
@@ -518,79 +503,6 @@ describe('ToolConfirmationMessage', () => {
     expect(output).toContain('Allow execution of MCP tool "testtool"');
     expect(output).toContain('from server "testserver"?');
     expect(output).toMatchSnapshot();
-    unmount();
-  });
-
-  it('should show MCP tool details expand hint for MCP confirmations', async () => {
-    const confirmationDetails: ToolCallConfirmationDetails = {
-      type: 'mcp',
-      title: 'Confirm MCP Tool',
-      serverName: 'test-server',
-      toolName: 'test-tool',
-      toolDisplayName: 'Test Tool',
-      toolArgs: {
-        url: 'https://www.google.co.jp',
-      },
-      toolDescription: 'Navigates browser to a URL.',
-      toolParameterSchema: {
-        type: 'object',
-        properties: {
-          url: {
-            type: 'string',
-            description: 'Destination URL',
-          },
-        },
-        required: ['url'],
-      },
-      onConfirm: vi.fn(),
-    };
-
-    const { lastFrame, waitUntilReady, unmount } = renderWithProviders(
-      <ToolConfirmationMessage
-        callId="test-call-id"
-        confirmationDetails={confirmationDetails}
-        config={mockConfig}
-        availableTerminalHeight={30}
-        terminalWidth={80}
-      />,
-    );
-    await waitUntilReady();
-
-    const output = lastFrame();
-    expect(output).toContain('MCP Tool Details:');
-    expect(output).toContain('(press Ctrl+O to expand MCP tool details)');
-    expect(output).not.toContain('https://www.google.co.jp');
-    expect(output).not.toContain('Navigates browser to a URL.');
-    unmount();
-  });
-
-  it('should omit empty MCP invocation arguments from details', async () => {
-    const confirmationDetails: ToolCallConfirmationDetails = {
-      type: 'mcp',
-      title: 'Confirm MCP Tool',
-      serverName: 'test-server',
-      toolName: 'test-tool',
-      toolDisplayName: 'Test Tool',
-      toolArgs: {},
-      toolDescription: 'No arguments required.',
-      onConfirm: vi.fn(),
-    };
-
-    const { lastFrame, waitUntilReady, unmount } = renderWithProviders(
-      <ToolConfirmationMessage
-        callId="test-call-id"
-        confirmationDetails={confirmationDetails}
-        config={mockConfig}
-        availableTerminalHeight={30}
-        terminalWidth={80}
-      />,
-    );
-    await waitUntilReady();
-
-    const output = lastFrame();
-    expect(output).toContain('MCP Tool Details:');
-    expect(output).toContain('(press Ctrl+O to expand MCP tool details)');
-    expect(output).not.toContain('Invocation Arguments:');
     unmount();
   });
 });

@@ -116,7 +116,7 @@ export interface StructuredError {
 }
 
 export interface GeminiErrorEventValue {
-  error: unknown;
+  error: StructuredError;
 }
 
 export interface GeminiFinishedEventValue {

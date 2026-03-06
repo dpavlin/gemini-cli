@@ -11,7 +11,6 @@ import { theme } from '../semantic-colors.js';
 import stripAnsi from 'strip-ansi';
 import type { RadioSelectItem } from './shared/RadioButtonSelect.js';
 import { RadioButtonSelect } from './shared/RadioButtonSelect.js';
-import { MaxSizedBox } from './shared/MaxSizedBox.js';
 import { Scrollable } from './shared/Scrollable.js';
 import { useKeypress } from '../hooks/useKeypress.js';
 import * as process from 'node:process';
@@ -23,11 +22,7 @@ import {
   type FolderDiscoveryResults,
 } from '@google/gemini-cli-core';
 import { useUIState } from '../contexts/UIStateContext.js';
-import { useAlternateBuffer } from '../hooks/useAlternateBuffer.js';
-import { OverflowProvider } from '../contexts/OverflowContext.js';
-import { ShowMoreLines } from './ShowMoreLines.js';
 import { StickyHeader } from './StickyHeader.js';
-
 export enum FolderTrustChoice {
   TRUST_FOLDER = 'trust_folder',
   TRUST_PARENT = 'trust_parent',
@@ -46,10 +41,7 @@ export const FolderTrustDialog: React.FC<FolderTrustDialogProps> = ({
   discoveryResults,
 }) => {
   const [exiting, setExiting] = useState(false);
-  const { terminalHeight, terminalWidth, constrainHeight } = useUIState();
-  const isAlternateBuffer = useAlternateBuffer();
-
-  const isExpanded = !constrainHeight;
+  const { terminalHeight, terminalWidth } = useUIState();
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
@@ -211,88 +203,60 @@ export const FolderTrustDialog: React.FC<FolderTrustDialogProps> = ({
     />
   );
 
-  const renderContent = () => {
-    if (isAlternateBuffer) {
-      return (
-        <Box flexDirection="column" width={dialogWidth}>
-          <StickyHeader
-            width={dialogWidth}
-            isFirst={true}
-            borderColor={borderColor}
-            borderDimColor={false}
-          >
-            {title}
-          </StickyHeader>
+  // ASB scrolling and standard rendering paths were merged without truncation
+  const renderContent = () => (
+    <Box flexDirection="column" width={dialogWidth}>
+      <StickyHeader
+        width={dialogWidth}
+        isFirst={true}
+        borderColor={borderColor}
+        borderDimColor={false}
+      >
+        {title}
+      </StickyHeader>
 
-          <Box
-            flexDirection="column"
-            borderLeft={true}
-            borderRight={true}
-            borderColor={borderColor}
-            borderStyle="round"
-            borderTop={false}
-            borderBottom={false}
-            width={dialogWidth}
-          >
-            <Scrollable
-              hasFocus={!isRestarting}
-              height={scrollableHeight}
-              width={dialogWidth - 2}
-            >
-              <Box flexDirection="column" paddingX={1}>
-                {discoveryContent}
-              </Box>
-            </Scrollable>
-
-            <Box paddingX={1} marginY={1}>
-              {selectOptions}
-            </Box>
-          </Box>
-
-          <Box
-            height={0}
-            width={dialogWidth}
-            borderLeft={true}
-            borderRight={true}
-            borderTop={false}
-            borderBottom={true}
-            borderColor={borderColor}
-            borderStyle="round"
-          />
-        </Box>
-      );
-    }
-
-    return (
       <Box
         flexDirection="column"
-        borderStyle="round"
+        borderLeft={true}
+        borderRight={true}
         borderColor={borderColor}
-        padding={1}
-        width="100%"
+        borderStyle="round"
+        borderTop={false}
+        borderBottom={false}
+        width={dialogWidth}
       >
-        <Box marginBottom={1}>{title}</Box>
-
-        <MaxSizedBox
-          maxHeight={isExpanded ? undefined : Math.max(4, terminalHeight - 12)}
-          overflowDirection="bottom"
+        <Scrollable
+          hasFocus={!isRestarting}
+          height={scrollableHeight}
+          width={dialogWidth - 2}
         >
-          {discoveryContent}
-        </MaxSizedBox>
+          <Box flexDirection="column" paddingX={1}>
+            {discoveryContent}
+          </Box>
+        </Scrollable>
 
-        <Box marginTop={1}>{selectOptions}</Box>
+        <Box paddingX={1} marginY={1}>
+          {selectOptions}
+        </Box>
       </Box>
-    );
-  };
 
-  const content = (
+      <Box
+        height={0}
+        width={dialogWidth}
+        borderLeft={true}
+        borderRight={true}
+        borderTop={false}
+        borderBottom={true}
+        borderColor={borderColor}
+        borderStyle="round"
+      />
+    </Box>
+  );
+
+  return (
     <Box flexDirection="column" width="100%">
       <Box flexDirection="column" marginLeft={1} marginRight={1}>
         {renderContent()}
-      </Box>
-
-      <Box paddingX={2} marginBottom={1}>
-        <ShowMoreLines constrainHeight={constrainHeight} />
       </Box>
 
       {isRestarting && (
@@ -311,11 +275,5 @@ export const FolderTrustDialog: React.FC<FolderTrustDialogProps> = ({
         </Box>
       )}
     </Box>
-  );
-
-  return isAlternateBuffer ? (
-    <OverflowProvider>{content}</OverflowProvider>
-  ) : (
-    content
   );
 };

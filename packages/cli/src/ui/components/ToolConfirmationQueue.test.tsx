@@ -5,7 +5,6 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { Box } from 'ink';
 import { ToolConfirmationQueue } from './ToolConfirmationQueue.js';
 import { StreamingState } from '../types.js';
 import { renderWithProviders } from '../../test-utils/render.js';
@@ -131,55 +130,6 @@ describe('ToolConfirmationQueue', () => {
     unmount();
   });
 
-  it('renders expansion hint when content is long and constrained', async () => {
-    const longDiff = '@@ -1,1 +1,50 @@\n' + '+line\n'.repeat(50);
-    const confirmingTool = {
-      tool: {
-        callId: 'call-1',
-        name: 'replace',
-        description: 'edit file',
-        status: CoreToolCallStatus.AwaitingApproval,
-        confirmationDetails: {
-          type: 'edit' as const,
-          title: 'Confirm edit',
-          fileName: 'test.ts',
-          filePath: '/test.ts',
-          fileDiff: longDiff,
-          originalContent: 'old',
-          newContent: 'new',
-        },
-      },
-      index: 1,
-      total: 1,
-    };
-
-    const { lastFrame, waitUntilReady, unmount } = renderWithProviders(
-      <Box flexDirection="column" height={30}>
-        <ToolConfirmationQueue
-          confirmingTool={confirmingTool as unknown as ConfirmingToolState}
-        />
-      </Box>,
-      {
-        config: mockConfig,
-        useAlternateBuffer: true,
-        uiState: {
-          terminalWidth: 80,
-          terminalHeight: 20,
-          constrainHeight: true,
-          streamingState: StreamingState.WaitingForConfirmation,
-        },
-      },
-    );
-    await waitUntilReady();
-
-    await waitFor(() =>
-      expect(lastFrame()?.toLowerCase()).toContain(
-        'press ctrl+o to show more lines',
-      ),
-    );
-    expect(lastFrame()).toMatchSnapshot();
-    unmount();
-  });
 
   it('calculates availableContentHeight based on availableTerminalHeight from UI state', async () => {
     const longDiff = '@@ -1,1 +1,50 @@\n' + '+line\n'.repeat(50);
@@ -222,12 +172,8 @@ describe('ToolConfirmationQueue', () => {
     );
     await waitUntilReady();
 
-    // With availableTerminalHeight = 10:
-    // maxHeight = Math.max(10 - 1, 4) = 9
-    // availableContentHeight = Math.max(9 - 6, 4) = 4
-    // MaxSizedBox in ToolConfirmationMessage will use 4
-    // It should show truncation message
-    await waitFor(() => expect(lastFrame()).toContain('first 49 lines hidden'));
+    // Truncation has been removed, so it should not show hidden lines
+    await waitFor(() => expect(lastFrame()).not.toContain('lines hidden'));
     expect(lastFrame()).toMatchSnapshot();
     unmount();
   });

@@ -23,7 +23,6 @@ import {
   RewindEvent,
   type ChatRecordingService,
   type GeminiClient,
-  convertSessionToClientHistory,
 } from '@google/gemini-cli-core';
 
 /**
@@ -55,8 +54,9 @@ async function rewindConversation(
     }
 
     // Convert to UI and Client formats
-    const { uiHistory } = convertSessionToHistoryFormats(conversation.messages);
-    const clientHistory = convertSessionToClientHistory(conversation.messages);
+    const { uiHistory, clientHistory } = convertSessionToHistoryFormats(
+      conversation.messages,
+    );
 
     client.setHistory(clientHistory as Content[]);
 

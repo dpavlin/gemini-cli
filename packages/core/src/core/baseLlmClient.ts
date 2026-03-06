@@ -280,22 +280,19 @@ export class BaseLlmClient {
       () => currentModel,
     );
 
-    let initialActiveModel = this.config.getActiveModel();
-
     try {
       const apiCall = () => {
         // Ensure we use the current active model
         // in case a fallback occurred in a previous attempt.
         const activeModel = this.config.getActiveModel();
-        if (activeModel !== initialActiveModel) {
-          initialActiveModel = activeModel;
+        if (activeModel !== currentModel) {
+          currentModel = activeModel;
           // Re-resolve config if model changed during retry
-          const { model: resolvedModel, generateContentConfig } =
+          const { generateContentConfig } =
             this.config.modelConfigService.getResolvedConfig({
               ...modelConfigKey,
               model: activeModel,
             });
-          currentModel = resolvedModel;
           currentGenerateContentConfig = generateContentConfig;
         }
         const finalConfig: GenerateContentConfig = {

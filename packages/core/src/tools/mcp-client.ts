@@ -70,7 +70,6 @@ import {
   sanitizeEnvironment,
   type EnvironmentSanitizationConfig,
 } from '../services/environmentSanitization.js';
-import { expandEnvVars } from '../utils/envExpansion.js';
 import {
   GEMINI_CLI_IDENTIFICATION_ENV_VAR,
   GEMINI_CLI_IDENTIFICATION_ENV_VAR_VALUE,
@@ -784,16 +783,9 @@ function createTransportRequestInit(
   mcpServerConfig: MCPServerConfig,
   headers: Record<string, string>,
 ): RequestInit {
-  const expandedHeaders: Record<string, string> = {};
-  if (mcpServerConfig.headers) {
-    for (const [key, value] of Object.entries(mcpServerConfig.headers)) {
-      expandedHeaders[key] = expandEnvVars(value, process.env);
-    }
-  }
-
   return {
     headers: {
-      ...expandedHeaders,
+      ...mcpServerConfig.headers,
       ...headers,
     },
   };
@@ -1978,33 +1970,15 @@ export async function createTransport(
   }
 
   if (mcpServerConfig.command) {
-    // 1. Sanitize the base process environment to prevent unintended leaks of system-wide secrets.
-    const sanitizedEnv = sanitizeEnvironment(process.env, {
-      ...sanitizationConfig,
-      enableEnvironmentVariableRedaction: true,
-    });
-
-    const finalEnv: Record<string, string> = {
-      [GEMINI_CLI_IDENTIFICATION_ENV_VAR]:
-        GEMINI_CLI_IDENTIFICATION_ENV_VAR_VALUE,
-    };
-    for (const [key, value] of Object.entries(sanitizedEnv)) {
-      if (value !== undefined) {
-        finalEnv[key] = value;
-      }
-    }
-
-    // Expand and merge explicit environment variables from the MCP configuration.
-    if (mcpServerConfig.env) {
-      for (const [key, value] of Object.entries(mcpServerConfig.env)) {
-        finalEnv[key] = expandEnvVars(value, process.env);
-      }
-    }
-
     let transport: Transport = new StdioClientTransport({
       command: mcpServerConfig.command,
       args: mcpServerConfig.args || [],
-      env: finalEnv,
+      env: {
+        ...sanitizeEnvironment(process.env, sanitizationConfig),
+        ...(mcpServerConfig.env || {}),
+        [GEMINI_CLI_IDENTIFICATION_ENV_VAR]:
+          GEMINI_CLI_IDENTIFICATION_ENV_VAR_VALUE,
+      } as Record<string, string>,
       cwd: mcpServerConfig.cwd,
       stderr: 'pipe',
     });

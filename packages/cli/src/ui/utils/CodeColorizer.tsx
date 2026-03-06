@@ -16,10 +16,6 @@ import type {
 } from 'hast';
 import { themeManager } from '../themes/theme-manager.js';
 import type { Theme } from '../themes/theme.js';
-import {
-  MaxSizedBox,
-  MINIMUM_MAX_HEIGHT,
-} from '../components/shared/MaxSizedBox.js';
 import type { LoadedSettings } from '../../config/settings.js';
 import { debugLogger } from '@google/gemini-cli-core';
 
@@ -139,7 +135,6 @@ export interface ColorizeCodeOptions {
 export function colorizeCode({
   code,
   language = null,
-  availableHeight,
   maxWidth,
   theme = null,
   settings,
@@ -154,20 +149,10 @@ export function colorizeCode({
   try {
     // Render the HAST tree using the adapted theme
     // Apply the theme's default foreground color to the top-level Text element
-    let lines = codeToHighlight.split('\n');
+    const lines = codeToHighlight.split('\n');
     const padWidth = String(lines.length).length; // Calculate padding width based on number of lines
 
-    let hiddenLinesCount = 0;
-
-    // Optimization to avoid highlighting lines that cannot possibly be displayed.
-    if (availableHeight !== undefined) {
-      availableHeight = Math.max(availableHeight, MINIMUM_MAX_HEIGHT);
-      if (lines.length > availableHeight) {
-        const sliceIndex = lines.length - availableHeight;
-        hiddenLinesCount = sliceIndex;
-        lines = lines.slice(sliceIndex);
-      }
-    }
+    const hiddenLinesCount = 0;
 
     const renderedLines = lines.map((line, index) => {
       const contentToRender = highlightAndRenderLine(
@@ -197,19 +182,6 @@ export function colorizeCode({
         </Box>
       );
     });
-
-    if (availableHeight !== undefined) {
-      return (
-        <MaxSizedBox
-          maxHeight={availableHeight}
-          maxWidth={maxWidth}
-          additionalHiddenLinesCount={hiddenLinesCount}
-          overflowDirection="top"
-        >
-          {renderedLines}
-        </MaxSizedBox>
-      );
-    }
 
     return (
       <Box flexDirection="column" width={maxWidth}>
@@ -241,18 +213,6 @@ export function colorizeCode({
         <Text color={activeTheme.colors.Gray}>{line}</Text>
       </Box>
     ));
-
-    if (availableHeight !== undefined) {
-      return (
-        <MaxSizedBox
-          maxHeight={availableHeight}
-          maxWidth={maxWidth}
-          overflowDirection="top"
-        >
-          {fallbackLines}
-        </MaxSizedBox>
-      );
-    }
 
     return (
       <Box flexDirection="column" width={maxWidth}>

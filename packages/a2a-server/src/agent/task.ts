@@ -13,7 +13,6 @@ import {
   getAllMCPServerStatuses,
   MCPServerStatus,
   isNodeError,
-  getErrorMessage,
   parseAndFormatApiError,
   safeLiteralReplace,
   DEFAULT_GUI_EDITOR,
@@ -58,33 +57,6 @@ import type {
 import type { PartUnion, Part as genAiPart } from '@google/genai';
 
 type UnionKeys<T> = T extends T ? keyof T : never;
-
-type ConfirmationType = ToolCallConfirmationDetails['type'];
-
-const VALID_CONFIRMATION_TYPES: readonly ConfirmationType[] = [
-  'edit',
-  'exec',
-  'mcp',
-  'info',
-  'ask_user',
-  'exit_plan_mode',
-] as const;
-
-function isToolCallConfirmationDetails(
-  value: unknown,
-): value is ToolCallConfirmationDetails {
-  if (
-    typeof value !== 'object' ||
-    value === null ||
-    !('onConfirm' in value) ||
-    typeof value.onConfirm !== 'function' ||
-    !('type' in value) ||
-    typeof value.type !== 'string'
-  ) {
-    return false;
-  }
-  return (VALID_CONFIRMATION_TYPES as readonly string[]).includes(value.type);
-}
 
 export class Task {
   id: string;
@@ -403,10 +375,11 @@ export class Task {
       }
 
       if (tc.status === 'awaiting_approval' && tc.confirmationDetails) {
-        const details = tc.confirmationDetails;
-        if (isToolCallConfirmationDetails(details)) {
-          this.pendingToolConfirmationDetails.set(tc.request.callId, details);
-        }
+        this.pendingToolConfirmationDetails.set(
+          tc.request.callId,
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+          tc.confirmationDetails as ToolCallConfirmationDetails,
+        );
       }
 
       // Only send an update if the status has actually changed.
@@ -438,12 +411,11 @@ export class Task {
       );
       toolCalls.forEach((tc: ToolCall) => {
         if (tc.status === 'awaiting_approval' && tc.confirmationDetails) {
-          const details = tc.confirmationDetails;
-          if (isToolCallConfirmationDetails(details)) {
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            details.onConfirm(ToolConfirmationOutcome.ProceedOnce);
-            this.pendingToolConfirmationDetails.delete(tc.request.callId);
-          }
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises, @typescript-eslint/no-unsafe-type-assertion
+          (tc.confirmationDetails as ToolCallConfirmationDetails).onConfirm(
+            ToolConfirmationOutcome.ProceedOnce,
+          );
+          this.pendingToolConfirmationDetails.delete(tc.request.callId);
         }
       });
       return;
@@ -493,13 +465,15 @@ export class Task {
     T extends ToolCall | AnyDeclarativeTool,
     K extends UnionKeys<T>,
   >(from: T, ...fields: K[]): Partial<T> {
-    const ret: Partial<T> = {};
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+    const ret = {} as Pick<T, K>;
     for (const field of fields) {
-      if (field in from && from[field] !== undefined) {
+      if (field in from) {
         ret[field] = from[field];
       }
     }
-    return ret;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+    return ret as Partial<T>;
   }
 
   private toolStatusMessage(
@@ -510,11 +484,8 @@ export class Task {
     const messageParts: Part[] = [];
 
     // Create a serializable version of the ToolCall (pick necessary
-    // properties/avoid methods causing circular reference errors).
-    // Type allows tool to be Partial<AnyDeclarativeTool> for serialization.
-    const serializableToolCall: Partial<Omit<ToolCall, 'tool'>> & {
-      tool?: Partial<AnyDeclarativeTool>;
-    } = this._pickFields(
+    // properties/avoid methods causing circular reference errors)
+    const serializableToolCall: Partial<ToolCall> = this._pickFields(
       tc,
       'request',
       'status',
@@ -524,7 +495,8 @@ export class Task {
     );
 
     if (tc.tool) {
-      const toolFields = this._pickFields(
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+      serializableToolCall.tool = this._pickFields(
         tc.tool,
         'name',
         'displayName',
@@ -534,8 +506,7 @@ export class Task {
         'canUpdateOutput',
         'schema',
         'parameterSchema',
-      );
-      serializableToolCall.tool = toolFields;
+      ) as AnyDeclarativeTool;
     }
 
     messageParts.push({
@@ -558,15 +529,8 @@ export class Task {
     old_string: string,
     new_string: string,
   ): Promise<string> {
-    // Validate path to prevent path traversal vulnerabilities
-    const resolvedPath = path.resolve(this.config.getTargetDir(), file_path);
-    const pathError = this.config.validatePathAccess(resolvedPath, 'read');
-    if (pathError) {
-      throw new Error(`Path validation failed: ${pathError}`);
-    }
-
     try {
-      const currentContent = await fs.readFile(resolvedPath, 'utf8');
+      const currentContent = await fs.readFile(file_path, 'utf8');
       return this._applyReplacement(
         currentContent,
         old_string,
@@ -660,32 +624,15 @@ export class Task {
           request.args['old_string'] &&
           request.args['new_string']
         ) {
-          const filePath = request.args['file_path'];
-          const oldString = request.args['old_string'];
-          const newString = request.args['new_string'];
-          if (
-            typeof filePath === 'string' &&
-            typeof oldString === 'string' &&
-            typeof newString === 'string'
-          ) {
-            // Resolve and validate path to prevent path traversal (user-controlled file_path).
-            const resolvedPath = path.resolve(
-              this.config.getTargetDir(),
-              filePath,
-            );
-            const pathError = this.config.validatePathAccess(
-              resolvedPath,
-              'read',
-            );
-            if (!pathError) {
-              const newContent = await this.getProposedContent(
-                resolvedPath,
-                oldString,
-                newString,
-              );
-              return { ...request, args: { ...request.args, newContent } };
-            }
-          }
+          const newContent = await this.getProposedContent(
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+            request.args['file_path'] as string,
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+            request.args['old_string'] as string,
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+            request.args['new_string'] as string,
+          );
+          return { ...request, args: { ...request.args, newContent } };
         }
         return request;
       }),
@@ -777,27 +724,19 @@ export class Task {
         break;
       case GeminiEventType.Error:
       default: {
-        // Use type guard instead of unsafe type assertion
-        let errorEvent: ServerGeminiErrorEvent | undefined;
-        if (
-          event.type === GeminiEventType.Error &&
-          event.value &&
-          typeof event.value === 'object' &&
-          'error' in event.value
-        ) {
-          errorEvent = event;
-        }
-        const errorMessage = errorEvent?.value?.error
-          ? getErrorMessage(errorEvent.value.error)
-          : 'Unknown error from LLM stream';
+        // Block scope for lexical declaration
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+        const errorEvent = event as ServerGeminiErrorEvent; // Type assertion
+        const errorMessage =
+          errorEvent.value?.error.message ?? 'Unknown error from LLM stream';
         logger.error(
           '[Task] Received error event from LLM stream:',
           errorMessage,
         );
 
         let errMessage = `Unknown error from LLM stream: ${JSON.stringify(event)}`;
-        if (errorEvent?.value?.error) {
-          errMessage = parseAndFormatApiError(errorEvent.value.error);
+        if (errorEvent.value) {
+          errMessage = parseAndFormatApiError(errorEvent.value);
         }
         this.cancelPendingTools(`LLM stream error: ${errorMessage}`);
         this.setTaskStateAndPublishUpdate(
@@ -873,11 +812,12 @@ export class Task {
 
         // If `edit` tool call, pass updated payload if presesent
         if (confirmationDetails.type === 'edit') {
-          const newContent = part.data['newContent'];
-          const payload =
-            typeof newContent === 'string'
-              ? ({ newContent } as ToolConfirmationPayload)
-              : undefined;
+          const payload = part.data['newContent']
+            ? ({
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+                newContent: part.data['newContent'] as string,
+              } as ToolConfirmationPayload)
+            : undefined;
           this.skipFinalTrueAfterInlineEdit = !!payload;
           try {
             await confirmationDetails.onConfirm(confirmationOutcome, payload);

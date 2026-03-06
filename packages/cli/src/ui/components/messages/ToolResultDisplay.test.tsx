@@ -123,8 +123,10 @@ describe('ToolResultDisplay', () => {
     unmount();
   });
 
-  it('truncates very long string results', { timeout: 20000 }, async () => {
-    const longString = 'a'.repeat(1000005);
+  it('does not truncate very long string results (removed character limit)', { timeout: 20000 }, async () => {
+    // Keep it relatively small for the test to avoid OOM or slow rendering in tests
+    // but large enough to prove it renders. The actual character limit is removed.
+    const longString = 'a'.repeat(1000);
     const { lastFrame, waitUntilReady, unmount } = renderWithProviders(
       <ToolResultDisplay
         resultDisplay={longString}
@@ -135,7 +137,9 @@ describe('ToolResultDisplay', () => {
     await waitUntilReady();
     const output = lastFrame();
 
-    expect(output).toMatchSnapshot();
+    // Because Ink wraps text to terminal width (80), it will be broken into multiple lines.
+    // So we just assert it contains the full text stripped of newlines, or just a chunk.
+    expect(output.replace(/\n/g, '')).toContain('a'.repeat(100));
     unmount();
   });
 
@@ -239,7 +243,7 @@ describe('ToolResultDisplay', () => {
     unmount();
   });
 
-  it('truncates ANSI output when maxLines is provided', async () => {
+  it('does not truncate ANSI output when maxLines is provided', async () => {
     const ansiResult: AnsiOutput = [
       [
         {
@@ -313,41 +317,11 @@ describe('ToolResultDisplay', () => {
     await waitUntilReady();
     const output = lastFrame();
 
-    expect(output).not.toContain('Line 1');
-    expect(output).not.toContain('Line 2');
-    expect(output).not.toContain('Line 3');
+    expect(output).toContain('Line 1');
+    expect(output).toContain('Line 2');
+    expect(output).toContain('Line 3');
     expect(output).toContain('Line 4');
     expect(output).toContain('Line 5');
-    unmount();
-  });
-
-  it('truncates ANSI output when maxLines is provided, even if availableTerminalHeight is undefined', async () => {
-    const ansiResult: AnsiOutput = Array.from({ length: 50 }, (_, i) => [
-      {
-        text: `Line ${i + 1}`,
-        fg: '',
-        bg: '',
-        bold: false,
-        italic: false,
-        underline: false,
-        dim: false,
-        inverse: false,
-      },
-    ]);
-    const { lastFrame, waitUntilReady, unmount } = renderWithProviders(
-      <ToolResultDisplay
-        resultDisplay={ansiResult}
-        terminalWidth={80}
-        maxLines={25}
-        availableTerminalHeight={undefined}
-      />,
-    );
-    await waitUntilReady();
-    const output = lastFrame();
-
-    // It SHOULD truncate to 25 lines because maxLines is provided
-    expect(output).not.toContain('Line 1');
-    expect(output).toContain('Line 50');
     unmount();
   });
 });

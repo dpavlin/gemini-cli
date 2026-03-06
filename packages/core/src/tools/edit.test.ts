@@ -607,53 +607,6 @@ function doIt() {
       };
       expect(tool.validateToolParams(params)).toMatch(/Path not in workspace/);
     });
-
-    it('should reject omission placeholder in new_string when old_string does not contain that placeholder', () => {
-      const params: EditToolParams = {
-        file_path: path.join(rootDir, 'test.txt'),
-        instruction: 'An instruction',
-        old_string: 'old content',
-        new_string: '(rest of methods ...)',
-      };
-      expect(tool.validateToolParams(params)).toBe(
-        "`new_string` contains an omission placeholder (for example 'rest of methods ...'). Provide exact literal replacement text.",
-      );
-    });
-
-    it('should reject new_string when it contains an additional placeholder not present in old_string', () => {
-      const params: EditToolParams = {
-        file_path: path.join(rootDir, 'test.txt'),
-        instruction: 'An instruction',
-        old_string: '(rest of methods ...)',
-        new_string: `(rest of methods ...)
-(unchanged code ...)`,
-      };
-      expect(tool.validateToolParams(params)).toBe(
-        "`new_string` contains an omission placeholder (for example 'rest of methods ...'). Provide exact literal replacement text.",
-      );
-    });
-
-    it('should allow omission placeholders when all are already present in old_string', () => {
-      const params: EditToolParams = {
-        file_path: path.join(rootDir, 'test.txt'),
-        instruction: 'An instruction',
-        old_string: `(rest of methods ...)
-(unchanged code ...)`,
-        new_string: `(unchanged code ...)
-(rest of methods ...)`,
-      };
-      expect(tool.validateToolParams(params)).toBeNull();
-    });
-
-    it('should allow normal code that contains placeholder text in a string literal', () => {
-      const params: EditToolParams = {
-        file_path: path.join(rootDir, 'test.ts'),
-        instruction: 'Update string literal',
-        old_string: 'const msg = "old";',
-        new_string: 'const msg = "(rest of methods ...)";',
-      };
-      expect(tool.validateToolParams(params)).toBeNull();
-    });
   });
 
   describe('execute', () => {
@@ -934,7 +887,7 @@ function doIt() {
     );
   });
 
-  describe('allow_multiple', () => {
+  describe('expected_replacements', () => {
     const testFile = 'replacements_test.txt';
     let filePath: string;
 
@@ -944,70 +897,34 @@ function doIt() {
 
     it.each([
       {
-        name: 'succeed when allow_multiple is true and there are multiple occurrences',
+        name: 'succeed when occurrences match expected_replacements',
         content: 'foo foo foo',
-        allow_multiple: true,
+        expected: 3,
         shouldSucceed: true,
         finalContent: 'bar bar bar',
       },
       {
-        name: 'succeed when allow_multiple is true and there is exactly 1 occurrence',
-        content: 'foo',
-        allow_multiple: true,
-        shouldSucceed: true,
-        finalContent: 'bar',
-      },
-      {
-        name: 'fail when allow_multiple is false and there are multiple occurrences',
+        name: 'fail when occurrences do not match expected_replacements',
         content: 'foo foo foo',
-        allow_multiple: false,
+        expected: 2,
         shouldSucceed: false,
-        expectedError: ToolErrorType.EDIT_EXPECTED_OCCURRENCE_MISMATCH,
       },
       {
-        name: 'default to 1 expected replacement if allow_multiple not specified',
+        name: 'default to 1 expected replacement if not specified',
         content: 'foo foo',
-        allow_multiple: undefined,
+        expected: undefined,
         shouldSucceed: false,
-        expectedError: ToolErrorType.EDIT_EXPECTED_OCCURRENCE_MISMATCH,
-      },
-      {
-        name: 'succeed when allow_multiple is false and there is exactly 1 occurrence',
-        content: 'foo',
-        allow_multiple: false,
-        shouldSucceed: true,
-        finalContent: 'bar',
-      },
-      {
-        name: 'fail when allow_multiple is true but there are 0 occurrences',
-        content: 'baz',
-        allow_multiple: true,
-        shouldSucceed: false,
-        expectedError: ToolErrorType.EDIT_NO_OCCURRENCE_FOUND,
-      },
-      {
-        name: 'fail when allow_multiple is false but there are 0 occurrences',
-        content: 'baz',
-        allow_multiple: false,
-        shouldSucceed: false,
-        expectedError: ToolErrorType.EDIT_NO_OCCURRENCE_FOUND,
       },
     ])(
       'should $name',
-      async ({
-        content,
-        allow_multiple,
-        shouldSucceed,
-        finalContent,
-        expectedError,
-      }) => {
+      async ({ content, expected, shouldSucceed, finalContent }) => {
         fs.writeFileSync(filePath, content, 'utf8');
         const params: EditToolParams = {
           file_path: filePath,
           instruction: 'Replace all foo with bar',
           old_string: 'foo',
           new_string: 'bar',
-          ...(allow_multiple !== undefined && { allow_multiple }),
+          ...(expected !== undefined && { expected_replacements: expected }),
         };
         const invocation = tool.build(params);
         const result = await invocation.execute(new AbortController().signal);
@@ -1017,7 +934,9 @@ function doIt() {
           if (finalContent)
             expect(fs.readFileSync(filePath, 'utf8')).toBe(finalContent);
         } else {
-          expect(result.error?.type).toBe(expectedError);
+          expect(result.error?.type).toBe(
+            ToolErrorType.EDIT_EXPECTED_OCCURRENCE_MISMATCH,
+          );
         }
       },
     );

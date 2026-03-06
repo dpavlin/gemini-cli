@@ -37,7 +37,6 @@ describe('ToolConfirmationMessage Redirection', () => {
         callId="test-call-id"
         confirmationDetails={confirmationDetails}
         config={mockConfig}
-        availableTerminalHeight={30}
         terminalWidth={100}
       />,
     );
