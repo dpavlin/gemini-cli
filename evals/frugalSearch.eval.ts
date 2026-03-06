@@ -68,7 +68,7 @@ describe('Frugal Search', () => {
         const args = getParams(call);
         return (
           args.file_path === 'src/legacy_processor.ts' &&
-          (args.end_line === undefined || args.end_line === null)
+          (args.limit === undefined || args.limit === null)
         );
       });
 
@@ -87,7 +87,7 @@ describe('Frugal Search', () => {
         if (
           call.toolRequest.name === 'read_file' &&
           args.file_path === 'src/legacy_processor.ts' &&
-          args.end_line !== undefined
+          args.limit !== undefined
         ) {
           return true;
         }

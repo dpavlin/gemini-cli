@@ -137,15 +137,16 @@ their corresponding top-level category object in your `settings.json` file.
   - **Default:** `undefined`
   - **Requires restart:** Yes
 
+- **`general.enablePromptCompletion`** (boolean):
+  - **Description:** Enable AI-powered prompt completion suggestions while
+    typing.
+  - **Default:** `false`
+  - **Requires restart:** Yes
+
 - **`general.retryFetchErrors`** (boolean):
   - **Description:** Retry on "exception TypeError: fetch failed sending
     request" errors.
   - **Default:** `false`
-
-- **`general.maxAttempts`** (number):
-  - **Description:** Maximum number of attempts for requests to the main chat
-    model. Cannot exceed 10.
-  - **Default:** `10`
 
 - **`general.debugKeystrokeLogging`** (boolean):
   - **Description:** Enable debug logging of keystrokes to the console.
@@ -873,14 +874,6 @@ their corresponding top-level category object in your `settings.json` file.
   - **Default:** `undefined`
   - **Requires restart:** Yes
 
-- **`security.enableConseca`** (boolean):
-  - **Description:** Enable the context-aware security checker. This feature
-    uses an LLM to dynamically generate and enforce security policies for tool
-    use based on your prompt, providing an additional layer of protection
-    against unintended actions.
-  - **Default:** `false`
-  - **Requires restart:** Yes
-
 #### `advanced`
 
 - **`advanced.autoConfigureMemory`** (boolean):
@@ -981,11 +974,6 @@ their corresponding top-level category object in your `settings.json` file.
   - **Description:** Enable model steering (user hints) to guide the model
     during tool execution.
   - **Default:** `false`
-
-- **`experimental.directWebFetch`** (boolean):
-  - **Description:** Enable web fetch behavior that bypasses LLM summarization.
-  - **Default:** `false`
-  - **Requires restart:** Yes
 
 #### `skills`
 

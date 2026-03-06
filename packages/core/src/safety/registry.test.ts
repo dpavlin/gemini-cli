@@ -8,7 +8,6 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { CheckerRegistry } from './registry.js';
 import { InProcessCheckerType } from '../policy/types.js';
 import { AllowedPathChecker } from './built-in.js';
-import { ConsecaSafetyChecker } from './conseca/conseca.js';
 
 describe('CheckerRegistry', () => {
   let registry: CheckerRegistry;
@@ -19,15 +18,10 @@ describe('CheckerRegistry', () => {
   });
 
   it('should resolve built-in in-process checkers', () => {
-    const allowedPathChecker = registry.resolveInProcess(
+    const checker = registry.resolveInProcess(
       InProcessCheckerType.ALLOWED_PATH,
     );
-    expect(allowedPathChecker).toBeInstanceOf(AllowedPathChecker);
-
-    const consecaChecker = registry.resolveInProcess(
-      InProcessCheckerType.CONSECA,
-    );
-    expect(consecaChecker).toBeInstanceOf(ConsecaSafetyChecker);
+    expect(checker).toBeInstanceOf(AllowedPathChecker);
   });
 
   it('should throw for unknown in-process checkers', () => {

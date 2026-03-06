@@ -26,11 +26,13 @@ export interface PromptCompletion {
 export interface UsePromptCompletionOptions {
   buffer: TextBuffer;
   config?: Config;
+  enabled: boolean;
 }
 
 export function usePromptCompletion({
   buffer,
   config,
+  enabled,
 }: UsePromptCompletionOptions): PromptCompletion {
   const [ghostText, setGhostText] = useState<string>('');
   const [isLoadingGhostText, setIsLoadingGhostText] = useState<boolean>(false);
@@ -40,7 +42,8 @@ export function usePromptCompletion({
   const lastSelectedTextRef = useRef<string>('');
   const lastRequestedTextRef = useRef<string>('');
 
-  const isPromptCompletionEnabled = false;
+  const isPromptCompletionEnabled =
+    enabled && (config?.getEnablePromptCompletion() ?? false);
 
   const clearGhostText = useCallback(() => {
     setGhostText('');

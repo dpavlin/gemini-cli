@@ -47,7 +47,6 @@ import type { MessageBus } from '../confirmation-bus/message-bus.js';
 import { debugLogger } from '../utils/debugLogger.js';
 import { WRITE_FILE_DEFINITION } from './definitions/coreTools.js';
 import { resolveToolDeclaration } from './definitions/resolver.js';
-import { detectOmissionPlaceholders } from './omissionPlaceholderDetector.js';
 
 /**
  * Parameters for the WriteFile tool
@@ -485,11 +484,6 @@ export class WriteFileTool
       return `Error accessing path properties for validation: ${resolvedPath}. Reason: ${
         statError instanceof Error ? statError.message : String(statError)
       }`;
-    }
-
-    const omissionPlaceholders = detectOmissionPlaceholders(params.content);
-    if (omissionPlaceholders.length > 0) {
-      return "`content` contains an omission placeholder (for example 'rest of methods ...'). Provide complete file content.";
     }
 
     return null;

@@ -25,7 +25,6 @@ import {
 import { useInactivityTimer } from '../../hooks/useInactivityTimer.js';
 import { formatCommand } from '../../utils/keybindingUtils.js';
 import { Command } from '../../../config/keyBindings.js';
-
 export const STATUS_INDICATOR_WIDTH = 3;
 
 /**
@@ -189,7 +188,6 @@ type ToolInfoProps = {
   emphasis: TextEmphasis;
   progressMessage?: string;
   progressPercent?: number;
-  originalRequestName?: string;
 };
 
 export const ToolInfo: React.FC<ToolInfoProps> = ({
@@ -199,7 +197,6 @@ export const ToolInfo: React.FC<ToolInfoProps> = ({
   emphasis,
   progressMessage,
   progressPercent,
-  originalRequestName,
 }) => {
   const status = mapCoreStatusToDisplayStatus(coreStatus);
   const nameColor = React.useMemo<string>(() => {
@@ -238,32 +235,18 @@ export const ToolInfo: React.FC<ToolInfoProps> = ({
     }
   }
 
-  const isShell = isShellTool(name);
-
   return (
-    <Box
-      overflow={isShell ? undefined : 'hidden'}
-      height={isShell ? undefined : 1}
-      flexGrow={1}
-      flexShrink={1}
-    >
-      <Text
-        strikethrough={status === ToolCallStatus.Canceled}
-        wrap={isShell ? 'wrap' : 'truncate'}
-      >
+    <Box overflow="hidden" minHeight={1} flexGrow={1} flexShrink={1}>
+      <Text strikethrough={status === ToolCallStatus.Canceled}>
         <Text color={nameColor} bold>
           {name}
         </Text>
-        {originalRequestName && originalRequestName !== name && (
-          <Text color={theme.text.secondary} italic>
-            {' '}
-            (redirection from {originalRequestName})
-          </Text>
-        )}
         {!isCompletedAskUser && (
           <>
             {' '}
-            <Text color={theme.text.secondary}>{displayDescription}</Text>
+            <Text color={theme.text.secondary}>
+              {displayDescription}
+            </Text>
           </>
         )}
       </Text>
@@ -272,7 +255,7 @@ export const ToolInfo: React.FC<ToolInfoProps> = ({
 };
 
 export const TrailingIndicator: React.FC = () => (
-  <Text color={theme.text.primary} wrap="truncate">
+  <Text color={theme.text.primary}>
     {' '}
     ←
   </Text>

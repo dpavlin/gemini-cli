@@ -78,7 +78,6 @@ export interface ExternalCheckerConfig {
 
 export enum InProcessCheckerType {
   ALLOWED_PATH = 'allowed-path',
-  CONSECA = 'conseca',
 }
 
 /**
@@ -115,12 +114,6 @@ export interface PolicyRule {
    * Can be used for more fine-grained control.
    */
   argsPattern?: RegExp;
-
-  /**
-   * Metadata annotations provided by the tool (e.g. readOnlyHint).
-   * All keys and values in this record must match the tool's annotations.
-   */
-  toolAnnotations?: Record<string, unknown>;
 
   /**
    * The decision to make when this rule matches.
@@ -171,12 +164,6 @@ export interface SafetyCheckerRule {
    * Can be used for more fine-grained control.
    */
   argsPattern?: RegExp;
-
-  /**
-   * Metadata annotations provided by the tool (e.g. readOnlyHint).
-   * All keys and values in this record must match the tool's annotations.
-   */
-  toolAnnotations?: Record<string, unknown>;
 
   /**
    * Priority of this checker. Higher numbers run first.

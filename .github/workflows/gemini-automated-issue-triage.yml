@@ -155,10 +155,7 @@ jobs:
               "telemetry": {
                 "enabled": true,
                 "target": "gcp"
-              },
-              "coreTools": [
-                "run_shell_command(echo)"
-              ],
+              }
             }
           prompt: |-
             ## Role

@@ -48,10 +48,6 @@ export {
   logWebFetchFallbackAttempt,
   logRewind,
 } from './loggers.js';
-export {
-  logConsecaPolicyGeneration,
-  logConsecaVerdict,
-} from './conseca-logger.js';
 export type { SlashCommandEvent, ChatCompressionEvent } from './types.js';
 export {
   SlashCommandStatus,
@@ -68,8 +64,6 @@ export {
   WebFetchFallbackAttemptEvent,
   ToolCallDecision,
   RewindEvent,
-  ConsecaPolicyGenerationEvent,
-  ConsecaVerdictEvent,
 } from './types.js';
 export { LlmRole } from './llmRole.js';
 export { makeSlashCommandEvent, makeChatCompressionEvent } from './types.js';

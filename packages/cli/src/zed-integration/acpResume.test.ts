@@ -26,7 +26,6 @@ import {
   SessionSelector,
   convertSessionToHistoryFormats,
 } from '../utils/sessionUtils.js';
-import { convertSessionToClientHistory } from '@google/gemini-cli-core';
 import type { LoadedSettings } from '../config/settings.js';
 
 vi.mock('../config/config.js', () => ({
@@ -40,33 +39,6 @@ vi.mock('../utils/sessionUtils.js', async (importOriginal) => {
     ...actual,
     SessionSelector: vi.fn(),
     convertSessionToHistoryFormats: vi.fn(),
-  };
-});
-
-vi.mock('@google/gemini-cli-core', async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import('@google/gemini-cli-core')>();
-  return {
-    ...actual,
-    CoreToolCallStatus: {
-      Validating: 'validating',
-      Scheduled: 'scheduled',
-      Error: 'error',
-      Success: 'success',
-      Executing: 'executing',
-      Cancelled: 'cancelled',
-      AwaitingApproval: 'awaiting_approval',
-    },
-    LlmRole: {
-      MAIN: 'main',
-      SUBAGENT: 'subagent',
-      UTILITY_TOOL: 'utility_tool',
-      USER: 'user',
-      MODEL: 'model',
-      SYSTEM: 'system',
-      TOOL: 'tool',
-    },
-    convertSessionToClientHistory: vi.fn(),
   };
 });
 
@@ -170,11 +142,9 @@ describe('GeminiAgent Session Resume', () => {
       { role: 'model', parts: [{ text: 'Hi there' }] },
     ];
     (convertSessionToHistoryFormats as unknown as Mock).mockReturnValue({
+      clientHistory: mockClientHistory,
       uiHistory: [],
     });
-    (convertSessionToClientHistory as unknown as Mock).mockReturnValue(
-      mockClientHistory,
-    );
 
     const response = await agent.loadSession({
       sessionId,
@@ -274,7 +244,6 @@ describe('GeminiAgent Session Resume', () => {
             toolCallId: 'call-2',
             status: 'failed',
             title: 'Write File',
-            kind: 'read',
           }),
         }),
       );

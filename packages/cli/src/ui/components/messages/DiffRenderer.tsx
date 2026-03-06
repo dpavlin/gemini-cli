@@ -9,7 +9,6 @@ import { useMemo } from 'react';
 import { Box, Text, useIsScreenReaderEnabled } from 'ink';
 import crypto from 'node:crypto';
 import { colorizeCode, colorizeLine } from '../../utils/CodeColorizer.js';
-import { MaxSizedBox } from '../shared/MaxSizedBox.js';
 import { theme as semanticTheme } from '../../semantic-colors.js';
 import type { Theme } from '../../themes/theme.js';
 import { useSettings } from '../../contexts/SettingsContext.js';
@@ -372,13 +371,9 @@ const renderDiffContent = (
   );
 
   return (
-    <MaxSizedBox
-      maxHeight={availableTerminalHeight}
-      maxWidth={terminalWidth}
-      key={key}
-    >
+    <Box flexDirection="column" maxWidth={terminalWidth} key={key}>
       {content}
-    </MaxSizedBox>
+    </Box>
   );
 };
 

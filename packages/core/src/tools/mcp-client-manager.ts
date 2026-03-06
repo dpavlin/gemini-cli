@@ -176,20 +176,6 @@ export class McpClientManager {
     name: string,
     config: MCPServerConfig,
   ): Promise<void> {
-    const existing = this.clients.get(name);
-    if (
-      existing &&
-      existing.getServerConfig().extension?.id !== config.extension?.id
-    ) {
-      const extensionText = config.extension
-        ? ` from extension "${config.extension.name}"`
-        : '';
-      debugLogger.warn(
-        `Skipping MCP config for server with name "${name}"${extensionText} as it already exists.`,
-      );
-      return;
-    }
-
     // Always track server config for UI display
     this.allServerConfigs.set(name, config);
 
@@ -205,6 +191,7 @@ export class McpClientManager {
     }
     // User-disabled servers: disconnect if running, don't start
     if (await this.isDisabledByUser(name)) {
+      const existing = this.clients.get(name);
       if (existing) {
         await this.disconnectClient(name);
       }
@@ -214,6 +201,16 @@ export class McpClientManager {
       return;
     }
     if (config.extension && !config.extension.isActive) {
+      return;
+    }
+    const existing = this.clients.get(name);
+    if (existing && existing.getServerConfig().extension !== config.extension) {
+      const extensionText = config.extension
+        ? ` from extension "${config.extension.name}"`
+        : '';
+      debugLogger.warn(
+        `Skipping MCP config for server with name "${name}"${extensionText} as it already exists.`,
+      );
       return;
     }
 

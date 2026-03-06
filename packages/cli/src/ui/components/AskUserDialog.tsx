@@ -29,9 +29,7 @@ import { useTabbedNavigation } from '../hooks/useTabbedNavigation.js';
 import { DialogFooter } from './shared/DialogFooter.js';
 import { MarkdownDisplay } from '../utils/MarkdownDisplay.js';
 import { RenderInline } from '../utils/InlineMarkdownRenderer.js';
-import { MaxSizedBox } from './shared/MaxSizedBox.js';
 import { UIStateContext } from '../contexts/UIStateContext.js';
-import { useAlternateBuffer } from '../hooks/useAlternateBuffer.js';
 
 /** Padding for dialog content to prevent text from touching edges. */
 const DIALOG_PADDING = 4;
@@ -272,12 +270,10 @@ const TextQuestionView: React.FC<TextQuestionViewProps> = ({
   onSelectionChange,
   onEditingCustomOption,
   availableWidth,
-  availableHeight,
   initialAnswer,
   progressHeader,
   keyboardHints,
 }) => {
-  const isAlternateBuffer = useAlternateBuffer();
   const prefix = '> ';
   const horizontalPadding = 1; // 1 for cursor
   const bufferWidth =
@@ -334,30 +330,17 @@ const TextQuestionView: React.FC<TextQuestionViewProps> = ({
 
   const placeholder = question.placeholder || 'Enter your response';
 
-  const HEADER_HEIGHT = progressHeader ? 2 : 0;
-  const INPUT_HEIGHT = 2; // TextInput + margin
-  const FOOTER_HEIGHT = 2; // DialogFooter + margin
-  const overhead = HEADER_HEIGHT + INPUT_HEIGHT + FOOTER_HEIGHT;
-  const questionHeight =
-    availableHeight && !isAlternateBuffer
-      ? Math.max(1, availableHeight - overhead)
-      : undefined;
-
   return (
     <Box flexDirection="column">
       {progressHeader}
       <Box marginBottom={1}>
-        <MaxSizedBox
-          maxHeight={questionHeight}
-          maxWidth={availableWidth}
-          overflowDirection="bottom"
-        >
+        <Box flexDirection="column" maxWidth={availableWidth}>
           <MarkdownDisplay
             text={autoBoldIfPlain(question.question)}
             terminalWidth={availableWidth - DIALOG_PADDING}
             isPending={false}
           />
-        </MaxSizedBox>
+        </Box>
       </Box>
 
       <Box flexDirection="row" marginBottom={1}>
@@ -474,7 +457,6 @@ const ChoiceQuestionView: React.FC<ChoiceQuestionViewProps> = ({
   progressHeader,
   keyboardHints,
 }) => {
-  const isAlternateBuffer = useAlternateBuffer();
   const numOptions =
     (question.options?.length ?? 0) + (question.type !== 'yesno' ? 1 : 0);
   const numLen = String(numOptions).length;
@@ -782,10 +764,8 @@ const ChoiceQuestionView: React.FC<ChoiceQuestionViewProps> = ({
   const listHeight = availableHeight
     ? Math.max(1, availableHeight - overhead)
     : undefined;
-  const questionHeight =
-    listHeight && !isAlternateBuffer
-      ? Math.min(15, Math.max(1, listHeight - DIALOG_PADDING))
-      : undefined;
+  // Truncation removed, we don't constrain the question height anymore.
+  const questionHeight = undefined;
   const maxItemsToShow =
     listHeight && questionHeight
       ? Math.max(1, Math.floor((listHeight - questionHeight) / 2))
@@ -795,11 +775,7 @@ const ChoiceQuestionView: React.FC<ChoiceQuestionViewProps> = ({
     <Box flexDirection="column">
       {progressHeader}
       <Box marginBottom={TITLE_MARGIN}>
-        <MaxSizedBox
-          maxHeight={questionHeight}
-          maxWidth={availableWidth}
-          overflowDirection="bottom"
-        >
+        <Box flexDirection="column" maxWidth={availableWidth}>
           <Box flexDirection="column">
             <MarkdownDisplay
               text={autoBoldIfPlain(question.question)}
@@ -812,7 +788,7 @@ const ChoiceQuestionView: React.FC<ChoiceQuestionViewProps> = ({
               </Text>
             )}
           </Box>
-        </MaxSizedBox>
+        </Box>
       </Box>
 
       <BaseSelectionList<OptionItem>

@@ -6,7 +6,55 @@ exports[`ToolConfirmationQueue > calculates availableContentHeight based on avai
 │                                                                              │
 │ ?  replace edit file                                                         │
 │                                                                              │
-│ ... first 49 lines hidden ...                                                │
+│  1 line                                                                      │
+│  2 line                                                                      │
+│  3 line                                                                      │
+│  4 line                                                                      │
+│  5 line                                                                      │
+│  6 line                                                                      │
+│  7 line                                                                      │
+│  8 line                                                                      │
+│  9 line                                                                      │
+│ 10 line                                                                      │
+│ 11 line                                                                      │
+│ 12 line                                                                      │
+│ 13 line                                                                      │
+│ 14 line                                                                      │
+│ 15 line                                                                      │
+│ 16 line                                                                      │
+│ 17 line                                                                      │
+│ 18 line                                                                      │
+│ 19 line                                                                      │
+│ 20 line                                                                      │
+│ 21 line                                                                      │
+│ 22 line                                                                      │
+│ 23 line                                                                      │
+│ 24 line                                                                      │
+│ 25 line                                                                      │
+│ 26 line                                                                      │
+│ 27 line                                                                      │
+│ 28 line                                                                      │
+│ 29 line                                                                      │
+│ 30 line                                                                      │
+│ 31 line                                                                      │
+│ 32 line                                                                      │
+│ 33 line                                                                      │
+│ 34 line                                                                      │
+│ 35 line                                                                      │
+│ 36 line                                                                      │
+│ 37 line                                                                      │
+│ 38 line                                                                      │
+│ 39 line                                                                      │
+│ 40 line                                                                      │
+│ 41 line                                                                      │
+│ 42 line                                                                      │
+│ 43 line                                                                      │
+│ 44 line                                                                      │
+│ 45 line                                                                      │
+│ 46 line                                                                      │
+│ 47 line                                                                      │
+│ 48 line                                                                      │
+│ 49 line                                                                      │
 │ 50 line                                                                      │
 │ Apply this change?                                                           │
 │                                                                              │
@@ -25,11 +73,11 @@ exports[`ToolConfirmationQueue > does not render expansion hint when constrainHe
 │                                                                              │
 │ ?  replace edit file                                                         │
 │                                                                              │
-│ ╭──────────────────────────────────────────────────────────────────────────╮ │
-│ │                                                                          │ │
-│ │ No changes detected.                                                     │ │
-│ │                                                                          │ │
-│ ╰──────────────────────────────────────────────────────────────────────────╯ │
+│ ╭──────────────────────╮                                                     │
+│ │                      │                                                     │
+│ │ No changes detected. │                                                     │
+│ │                      │                                                     │
+│ ╰──────────────────────╯                                                     │
 │ Apply this change?                                                           │
 │                                                                              │
 │ ● 1. Allow once                                                              │
@@ -87,26 +135,6 @@ exports[`ToolConfirmationQueue > renders ExitPlanMode tool confirmation with Suc
 │                                                                              │
 │ Enter to select · ↑/↓ to navigate · Esc to cancel                            │
 ╰──────────────────────────────────────────────────────────────────────────────╯
-"
-`;
-
-exports[`ToolConfirmationQueue > renders expansion hint when content is long and constrained 1`] = `
-"╭──────────────────────────────────────────────────────────────────────────────╮
-│ Action Required                                                              │
-│                                                                              │
-│ ?  replace edit file                                                         │
-│                                                                              │
-│ ... first 49 lines hidden ...                                                │
-│ 50 line                                                                      │
-│ Apply this change?                                                           │
-│                                                                              │
-│ ● 1. Allow once                                                              │
-│   2. Allow for this session                                                  │
-│   3. Modify with external editor                                             │
-│   4. No, suggest changes (esc)                                               │
-│                                                                              │
-╰──────────────────────────────────────────────────────────────────────────────╯
- Press Ctrl+O to show more lines
 "
 `;
 

@@ -87,12 +87,7 @@ export class FileTokenStorage extends BaseTokenStorage {
           'Unsupported state or unable to authenticate data',
         )
       ) {
-        // Decryption failed - this can happen when switching between auth types
-        // or if the file is genuinely corrupted.
-        throw new Error(
-          `Corrupted token file detected at: ${this.tokenFilePath}\n` +
-            `Please delete or rename this file to resolve the issue.`,
-        );
+        throw new Error('Token file corrupted');
       }
       throw error;
     }

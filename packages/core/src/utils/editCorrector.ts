@@ -185,16 +185,12 @@ export async function ensureCorrectEdit(
     unescapeStringForGeminiBug(originalParams.new_string) !==
     originalParams.new_string;
 
-  const allowMultiple = originalParams.allow_multiple ?? false;
+  const expectedReplacements = originalParams.expected_replacements ?? 1;
 
   let finalOldString = originalParams.old_string;
   let occurrences = countOccurrences(currentContent, finalOldString);
 
-  const isOccurrencesMatch = allowMultiple
-    ? occurrences > 0
-    : occurrences === 1;
-
-  if (isOccurrencesMatch) {
+  if (occurrences === expectedReplacements) {
     if (newStringPotentiallyEscaped && !disableLLMCorrection) {
       finalNewString = await correctNewStringEscaping(
         baseLlmClient,
@@ -203,8 +199,30 @@ export async function ensureCorrectEdit(
         abortSignal,
       );
     }
-  } else if (occurrences > 1 && !allowMultiple) {
-    // If user doesn't allow multiple but found multiple, return as-is (will fail validation later)
+  } else if (occurrences > expectedReplacements) {
+    const expectedReplacements = originalParams.expected_replacements ?? 1;
+
+    // If user expects multiple replacements, return as-is
+    if (occurrences === expectedReplacements) {
+      const result: CorrectedEditResult = {
+        params: { ...originalParams },
+        occurrences,
+      };
+      editCorrectionCache.set(cacheKey, result);
+      return result;
+    }
+
+    // If user expects 1 but found multiple, try to correct (existing behavior)
+    if (expectedReplacements === 1) {
+      const result: CorrectedEditResult = {
+        params: { ...originalParams },
+        occurrences,
+      };
+      editCorrectionCache.set(cacheKey, result);
+      return result;
+    }
+
+    // If occurrences don't match expected, return as-is (will fail validation later)
     const result: CorrectedEditResult = {
       params: { ...originalParams },
       occurrences,
@@ -218,11 +236,7 @@ export async function ensureCorrectEdit(
     );
     occurrences = countOccurrences(currentContent, unescapedOldStringAttempt);
 
-    const isUnescapedOccurrencesMatch = allowMultiple
-      ? occurrences > 0
-      : occurrences === 1;
-
-    if (isUnescapedOccurrencesMatch) {
+    if (occurrences === expectedReplacements) {
       finalOldString = unescapedOldStringAttempt;
       if (newStringPotentiallyEscaped && !disableLLMCorrection) {
         finalNewString = await correctNewString(
@@ -282,11 +296,7 @@ export async function ensureCorrectEdit(
         llmCorrectedOldString,
       );
 
-      const isLlmOccurrencesMatch = allowMultiple
-        ? llmOldOccurrences > 0
-        : llmOldOccurrences === 1;
-
-      if (isLlmOccurrencesMatch) {
+      if (llmOldOccurrences === expectedReplacements) {
         finalOldString = llmCorrectedOldString;
         occurrences = llmOldOccurrences;
 
@@ -312,7 +322,7 @@ export async function ensureCorrectEdit(
         return result;
       }
     } else {
-      // Unescaping old_string resulted in > 1 occurrence but not allowMultiple
+      // Unescaping old_string resulted in > 1 occurrence
       const result: CorrectedEditResult = {
         params: { ...originalParams },
         occurrences, // This will be > 1
@@ -326,7 +336,7 @@ export async function ensureCorrectEdit(
     finalOldString,
     finalNewString,
     currentContent,
-    allowMultiple,
+    expectedReplacements,
   );
   finalOldString = targetString;
   finalNewString = pair;
@@ -695,7 +705,7 @@ function trimPairIfPossible(
   target: string,
   trimIfTargetTrims: string,
   currentContent: string,
-  allowMultiple: boolean,
+  expectedReplacements: number,
 ) {
   const trimmedTargetString = trimPreservingTrailingNewline(target);
   if (target.length !== trimmedTargetString.length) {
@@ -704,11 +714,7 @@ function trimPairIfPossible(
       trimmedTargetString,
     );
 
-    const isMatch = allowMultiple
-      ? trimmedTargetOccurrences > 0
-      : trimmedTargetOccurrences === 1;
-
-    if (isMatch) {
+    if (trimmedTargetOccurrences === expectedReplacements) {
       const trimmedReactiveString =
         trimPreservingTrailingNewline(trimIfTargetTrims);
       return {

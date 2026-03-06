@@ -57,7 +57,6 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
   config,
   progressMessage,
   progressPercent,
-  originalRequestName,
 }) => {
   const isThisShellFocused = checkIsShellFocused(
     name,
@@ -94,7 +93,6 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
           emphasis={emphasis}
           progressMessage={progressMessage}
           progressPercent={progressPercent}
-          originalRequestName={originalRequestName}
         />
         <FocusHint
           shouldShowFocusHint={shouldShowFocusHint}

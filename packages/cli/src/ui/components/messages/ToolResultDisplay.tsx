@@ -9,7 +9,6 @@ import { Box, Text } from 'ink';
 import { DiffRenderer } from './DiffRenderer.js';
 import { MarkdownDisplay } from '../../utils/MarkdownDisplay.js';
 import { AnsiOutputText, AnsiLineText } from '../AnsiOutput.js';
-import { MaxSizedBox } from '../shared/MaxSizedBox.js';
 import { theme } from '../../semantic-colors.js';
 import type { AnsiOutput, AnsiLine } from '@google/gemini-cli-core';
 import { useUIState } from '../../contexts/UIStateContext.js';
@@ -22,7 +21,7 @@ import { ACTIVE_SHELL_MAX_LINES } from '../../constants.js';
 import { calculateToolContentMaxLines } from '../../utils/toolLayoutUtils.js';
 
 // Large threshold to ensure we don't cause performance issues for very large
-// outputs that will get truncated further MaxSizedBox anyway.
+// outputs. Ink will crash/OOM if attempting to render multi-megabyte strings.
 const MAXIMUM_RESULT_DISPLAY_CHARACTERS = 20000;
 
 export interface ToolResultDisplayProps {
@@ -73,44 +72,16 @@ export const ToolResultDisplay: React.FC<ToolResultDisplayProps> = ({
     [],
   );
 
-  const { truncatedResultDisplay, hiddenLinesCount } = React.useMemo(() => {
-    let hiddenLines = 0;
-    // Only truncate string output if not in alternate buffer mode to ensure
-    // we can scroll through the full output.
+  const truncatedResultDisplay = React.useMemo(() => {
     if (typeof resultDisplay === 'string' && !isAlternateBuffer) {
       let text = resultDisplay;
       if (text.length > MAXIMUM_RESULT_DISPLAY_CHARACTERS) {
-        text = '...' + text.slice(-MAXIMUM_RESULT_DISPLAY_CHARACTERS);
+        text = '...[Output truncated for stability]...\n' + text.slice(-MAXIMUM_RESULT_DISPLAY_CHARACTERS);
       }
-      if (maxLines) {
-        const hasTrailingNewline = text.endsWith('\n');
-        const contentText = hasTrailingNewline ? text.slice(0, -1) : text;
-        const lines = contentText.split('\n');
-        if (lines.length > maxLines) {
-          // We will have a label from MaxSizedBox. Reserve space for it.
-          const targetLines = Math.max(1, maxLines - 1);
-          hiddenLines = lines.length - targetLines;
-          text =
-            lines.slice(-targetLines).join('\n') +
-            (hasTrailingNewline ? '\n' : '');
-        }
-      }
-      return { truncatedResultDisplay: text, hiddenLinesCount: hiddenLines };
+      return text;
     }
-
-    if (Array.isArray(resultDisplay) && !isAlternateBuffer && maxLines) {
-      if (resultDisplay.length > maxLines) {
-        // We will have a label from MaxSizedBox. Reserve space for it.
-        const targetLines = Math.max(1, maxLines - 1);
-        return {
-          truncatedResultDisplay: resultDisplay.slice(-targetLines),
-          hiddenLinesCount: resultDisplay.length - targetLines,
-        };
-      }
-    }
-
-    return { truncatedResultDisplay: resultDisplay, hiddenLinesCount: 0 };
-  }, [resultDisplay, isAlternateBuffer, maxLines]);
+    return resultDisplay;
+  }, [resultDisplay, isAlternateBuffer]);
 
   if (!truncatedResultDisplay) return null;
 
@@ -203,10 +174,6 @@ export const ToolResultDisplay: React.FC<ToolResultDisplayProps> = ({
       />
     );
   } else {
-    const shouldDisableTruncation =
-      isAlternateBuffer ||
-      (availableTerminalHeight === undefined && maxLines === undefined);
-
     content = (
       <AnsiOutputText
         // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
@@ -216,7 +183,7 @@ export const ToolResultDisplay: React.FC<ToolResultDisplayProps> = ({
         }
         width={childWidth}
         maxLines={isAlternateBuffer ? undefined : maxLines}
-        disableTruncation={shouldDisableTruncation}
+        disableTruncation={true}
       />
     );
   }
@@ -237,13 +204,7 @@ export const ToolResultDisplay: React.FC<ToolResultDisplayProps> = ({
 
   return (
     <Box width={childWidth} flexDirection="column">
-      <MaxSizedBox
-        maxHeight={availableHeight}
-        maxWidth={childWidth}
-        additionalHiddenLinesCount={hiddenLinesCount}
-      >
-        {content}
-      </MaxSizedBox>
+      {content}
     </Box>
   );
 };

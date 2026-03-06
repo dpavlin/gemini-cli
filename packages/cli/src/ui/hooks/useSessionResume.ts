@@ -9,7 +9,6 @@ import {
   coreEvents,
   type Config,
   type ResumedSessionData,
-  convertSessionToClientHistory,
 } from '@google/gemini-cli-core';
 import type { Part } from '@google/genai';
 import type { HistoryItemWithoutId } from '../types.js';
@@ -114,7 +113,7 @@ export function useSessionResume({
       );
       void loadHistoryForResume(
         historyData.uiHistory,
-        convertSessionToClientHistory(resumedSessionData.conversation.messages),
+        historyData.clientHistory,
         resumedSessionData,
       );
     }

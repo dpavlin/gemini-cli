@@ -12,10 +12,7 @@ import { ToolConfirmationMessage } from './messages/ToolConfirmationMessage.js';
 import { ToolStatusIndicator, ToolInfo } from './messages/ToolShared.js';
 import { useUIState } from '../contexts/UIStateContext.js';
 import type { ConfirmingToolState } from '../hooks/useConfirmingTool.js';
-import { OverflowProvider } from '../contexts/OverflowContext.js';
-import { ShowMoreLines } from './ShowMoreLines.js';
 import { StickyHeader } from './StickyHeader.js';
-import { useAlternateBuffer } from '../hooks/useAlternateBuffer.js';
 import type { SerializableConfirmationDetails } from '@google/gemini-cli-core';
 
 function getConfirmationHeader(
@@ -41,39 +38,17 @@ export const ToolConfirmationQueue: React.FC<ToolConfirmationQueueProps> = ({
   confirmingTool,
 }) => {
   const config = useConfig();
-  const isAlternateBuffer = useAlternateBuffer();
-  const {
-    mainAreaWidth,
-    terminalHeight,
-    constrainHeight,
-    availableTerminalHeight: uiAvailableHeight,
-  } = useUIState();
+  const { mainAreaWidth } = useUIState();
   const { tool, index, total } = confirmingTool;
 
   // Safety check: ToolConfirmationMessage requires confirmationDetails
   if (!tool.confirmationDetails) return null;
-
-  // Render up to 100% of the available terminal height (minus 1 line for safety)
-  // to maximize space for diffs and other content.
-  const maxHeight =
-    uiAvailableHeight !== undefined
-      ? Math.max(uiAvailableHeight - 1, 4)
-      : Math.floor(terminalHeight * 0.5);
 
   const isRoutine =
     tool.confirmationDetails?.type === 'ask_user' ||
     tool.confirmationDetails?.type === 'exit_plan_mode';
   const borderColor = isRoutine ? theme.status.success : theme.status.warning;
   const hideToolIdentity = isRoutine;
-
-  // ToolConfirmationMessage needs to know the height available for its OWN content.
-  // We subtract the lines used by the Queue wrapper:
-  // - 2 lines for the rounded border
-  // - 2 lines for the Header (text + margin)
-  // - 2 lines for Tool Identity (text + margin)
-  const availableContentHeight = constrainHeight
-    ? Math.max(maxHeight - (hideToolIdentity ? 4 : 6), 4)
-    : undefined;
 
   const content = (
     <>
@@ -135,7 +110,6 @@ export const ToolConfirmationQueue: React.FC<ToolConfirmationQueueProps> = ({
             confirmationDetails={tool.confirmationDetails}
             config={config}
             terminalWidth={mainAreaWidth - 4} // Adjust for parent border/padding
-            availableTerminalHeight={availableContentHeight}
             isFocused={true}
           />
         </Box>
@@ -150,14 +124,8 @@ export const ToolConfirmationQueue: React.FC<ToolConfirmationQueueProps> = ({
           borderStyle="round"
         />
       </Box>
-      <ShowMoreLines constrainHeight={constrainHeight} />
     </>
   );
 
-  return isAlternateBuffer ? (
-    /* Shadow the global provider to maintain isolation in ASB mode. */
-    <OverflowProvider>{content}</OverflowProvider>
-  ) : (
-    content
-  );
+  return content;
 };

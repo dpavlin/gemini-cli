@@ -5,7 +5,7 @@
  */
 
 import type React from 'react';
-import { useMemo, useCallback, useState } from 'react';
+import { useMemo, useCallback } from 'react';
 import { Box, Text } from 'ink';
 import { DiffRenderer } from './DiffRenderer.js';
 import { RenderInline } from '../../utils/InlineMarkdownRenderer.js';
@@ -20,7 +20,6 @@ import {
 import type { RadioSelectItem } from '../shared/RadioButtonSelect.js';
 import { useToolActions } from '../../contexts/ToolActionsContext.js';
 import { RadioButtonSelect } from '../shared/RadioButtonSelect.js';
-import { MaxSizedBox, MINIMUM_MAX_HEIGHT } from '../shared/MaxSizedBox.js';
 import {
   sanitizeForDisplay,
   stripUnsafeCharacters,
@@ -29,7 +28,6 @@ import { useKeypress } from '../../hooks/useKeypress.js';
 import { theme } from '../../semantic-colors.js';
 import { useSettings } from '../../contexts/SettingsContext.js';
 import { keyMatchers, Command } from '../../keyMatchers.js';
-import { formatCommand } from '../../utils/keybindingUtils.js';
 import {
   REDIRECTION_WARNING_NOTE_LABEL,
   REDIRECTION_WARNING_NOTE_TEXT,
@@ -50,7 +48,6 @@ export interface ToolConfirmationMessageProps {
   confirmationDetails: SerializableConfirmationDetails;
   config: Config;
   isFocused?: boolean;
-  availableTerminalHeight?: number;
   terminalWidth: number;
 }
 
@@ -61,21 +58,9 @@ export const ToolConfirmationMessage: React.FC<
   confirmationDetails,
   config,
   isFocused = true,
-  availableTerminalHeight,
   terminalWidth,
 }) => {
   const { confirm, isDiffingEnabled } = useToolActions();
-  const [mcpDetailsExpansionState, setMcpDetailsExpansionState] = useState<{
-    callId: string;
-    expanded: boolean;
-  }>({
-    callId,
-    expanded: false,
-  });
-  const isMcpToolDetailsExpanded =
-    mcpDetailsExpansionState.callId === callId
-      ? mcpDetailsExpansionState.expanded
-      : false;
 
   const settings = useSettings();
   const allowPermanentApproval =
@@ -98,81 +83,9 @@ export const ToolConfirmationMessage: React.FC<
     [confirm, callId],
   );
 
-  const mcpToolDetailsText = useMemo(() => {
-    if (confirmationDetails.type !== 'mcp') {
-      return null;
-    }
-
-    const detailsLines: string[] = [];
-    const hasNonEmptyToolArgs =
-      confirmationDetails.toolArgs !== undefined &&
-      !(
-        typeof confirmationDetails.toolArgs === 'object' &&
-        confirmationDetails.toolArgs !== null &&
-        Object.keys(confirmationDetails.toolArgs).length === 0
-      );
-    if (hasNonEmptyToolArgs) {
-      let argsText: string;
-      try {
-        argsText = stripUnsafeCharacters(
-          JSON.stringify(confirmationDetails.toolArgs, null, 2),
-        );
-      } catch {
-        argsText = '[unserializable arguments]';
-      }
-      detailsLines.push('Invocation Arguments:');
-      detailsLines.push(argsText);
-    }
-
-    const description = confirmationDetails.toolDescription?.trim();
-    if (description) {
-      if (detailsLines.length > 0) {
-        detailsLines.push('');
-      }
-      detailsLines.push('Description:');
-      detailsLines.push(stripUnsafeCharacters(description));
-    }
-
-    if (confirmationDetails.toolParameterSchema !== undefined) {
-      let schemaText: string;
-      try {
-        schemaText = stripUnsafeCharacters(
-          JSON.stringify(confirmationDetails.toolParameterSchema, null, 2),
-        );
-      } catch {
-        schemaText = '[unserializable schema]';
-      }
-      if (detailsLines.length > 0) {
-        detailsLines.push('');
-      }
-      detailsLines.push('Input Schema:');
-      detailsLines.push(schemaText);
-    }
-
-    if (detailsLines.length === 0) {
-      return null;
-    }
-
-    return detailsLines.join('\n');
-  }, [confirmationDetails]);
-
-  const hasMcpToolDetails = !!mcpToolDetailsText;
-  const expandDetailsHintKey = formatCommand(Command.SHOW_MORE_LINES);
-
   useKeypress(
     (key) => {
       if (!isFocused) return false;
-      if (
-        confirmationDetails.type === 'mcp' &&
-        hasMcpToolDetails &&
-        keyMatchers[Command.SHOW_MORE_LINES](key)
-      ) {
-        setMcpDetailsExpansionState({
-          callId,
-          expanded: !isMcpToolDetailsExpanded,
-        });
-        return true;
-      }
       if (keyMatchers[Command.ESCAPE](key)) {
         handleConfirm(ToolConfirmationOutcome.Cancel);
         return true;
@@ -184,7 +97,7 @@ export const ToolConfirmationMessage: React.FC<
       }
       return false;
     },
-    { isActive: isFocused, priority: true },
+    { isActive: isFocused },
   );
 
   const handleSelect = useCallback(
@@ -354,35 +267,6 @@ export const ToolConfirmationMessage: React.FC<
     isDiffingEnabled,
   ]);
 
-  const availableBodyContentHeight = useCallback(() => {
-    if (availableTerminalHeight === undefined) {
-      return undefined;
-    }
-
-    if (handlesOwnUI) {
-      return availableTerminalHeight;
-    }
-
-    // Calculate the vertical space (in lines) consumed by UI elements
-    // surrounding the main body content.
-    const PADDING_OUTER_Y = 2; // Main container has `padding={1}` (top & bottom).
-    const MARGIN_BODY_BOTTOM = 1; // margin on the body container.
-    const HEIGHT_QUESTION = 1; // The question text is one line.
-    const MARGIN_QUESTION_BOTTOM = 1; // Margin on the question container.
-
-    const optionsCount = getOptions().length;
-
-    const surroundingElementsHeight =
-      PADDING_OUTER_Y +
-      MARGIN_BODY_BOTTOM +
-      HEIGHT_QUESTION +
-      MARGIN_QUESTION_BOTTOM +
-      optionsCount +
-      1; // Reserve one line for 'ShowMoreLines' hint
-
-    return Math.max(availableTerminalHeight - surroundingElementsHeight, 1);
-  }, [availableTerminalHeight, getOptions, handlesOwnUI]);
-
   const { question, bodyContent, options, securityWarnings } = useMemo<{
     question: string;
     bodyContent: React.ReactNode;
@@ -409,7 +293,6 @@ export const ToolConfirmationMessage: React.FC<
             handleConfirm(ToolConfirmationOutcome.Cancel);
           }}
           width={terminalWidth}
-          availableHeight={availableBodyContentHeight()}
         />
       );
       return {
@@ -440,7 +323,6 @@ export const ToolConfirmationMessage: React.FC<
             handleConfirm(ToolConfirmationOutcome.Cancel);
           }}
           width={terminalWidth}
-          availableHeight={availableBodyContentHeight()}
         />
       );
       return { question: '', bodyContent, options: [], securityWarnings: null };
@@ -472,7 +354,6 @@ export const ToolConfirmationMessage: React.FC<
           <DiffRenderer
             diffContent={stripUnsafeCharacters(confirmationDetails.fileDiff)}
             filename={sanitizeForDisplay(confirmationDetails.fileName)}
-            availableTerminalHeight={availableBodyContentHeight()}
             terminalWidth={terminalWidth}
           />
         );
@@ -488,35 +369,9 @@ export const ToolConfirmationMessage: React.FC<
         hasRedirection(cmd),
       );
 
-      let bodyContentHeight = availableBodyContentHeight();
       let warnings: React.ReactNode = null;
 
-      if (bodyContentHeight !== undefined) {
-        bodyContentHeight -= 2; // Account for padding;
-      }
-
       if (containsRedirection) {
-        // Calculate lines needed for Note and Tip
-        const safeWidth = Math.max(terminalWidth, 1);
-        const noteLength =
-          REDIRECTION_WARNING_NOTE_LABEL.length +
-          REDIRECTION_WARNING_NOTE_TEXT.length;
-        const tipLength =
-          REDIRECTION_WARNING_TIP_LABEL.length +
-          REDIRECTION_WARNING_TIP_TEXT.length;
-
-        const noteLines = Math.ceil(noteLength / safeWidth);
-        const tipLines = Math.ceil(tipLength / safeWidth);
-        const spacerLines = 1;
-        const warningHeight = noteLines + tipLines + spacerLines;
-
-        if (bodyContentHeight !== undefined) {
-          bodyContentHeight = Math.max(
-            bodyContentHeight - warningHeight,
-            MINIMUM_MAX_HEIGHT,
-          );
-        }
-
         warnings = (
           <>
             <Box height={1} />
@@ -538,10 +393,7 @@ export const ToolConfirmationMessage: React.FC<
 
       bodyContent = (
         <Box flexDirection="column">
-          <MaxSizedBox
-            maxHeight={bodyContentHeight}
-            maxWidth={Math.max(terminalWidth, 1)}
-          >
+          <Box flexDirection="column" maxWidth={Math.max(terminalWidth, 1)}>
             <Box flexDirection="column">
               {commandsToDisplay.map((cmd, idx) => (
                 <Text key={idx} color={theme.text.link}>
@@ -549,7 +401,7 @@ export const ToolConfirmationMessage: React.FC<
                 </Text>
               ))}
             </Box>
-          </MaxSizedBox>
+          </Box>
           {warnings}
         </Box>
       );
@@ -588,31 +440,12 @@ export const ToolConfirmationMessage: React.FC<
 
       bodyContent = (
         <Box flexDirection="column">
-          <>
-            <Text color={theme.text.link}>
-              MCP Server: {sanitizeForDisplay(mcpProps.serverName)}
-            </Text>
-            <Text color={theme.text.link}>
-              Tool: {sanitizeForDisplay(mcpProps.toolName)}
-            </Text>
-          </>
-          {hasMcpToolDetails && (
-            <Box flexDirection="column" marginTop={1}>
-              <Text color={theme.text.primary}>MCP Tool Details:</Text>
-              {isMcpToolDetailsExpanded ? (
-                <>
-                  <Text color={theme.text.secondary}>
-                    (press {expandDetailsHintKey} to collapse MCP tool details)
-                  </Text>
-                  <Text color={theme.text.link}>{mcpToolDetailsText}</Text>
-                </>
-              ) : (
-                <Text color={theme.text.secondary}>
-                  (press {expandDetailsHintKey} to expand MCP tool details)
-                </Text>
-              )}
-            </Box>
-          )}
+          <Text color={theme.text.link}>
+            MCP Server: {sanitizeForDisplay(mcpProps.serverName)}
+          </Text>
+          <Text color={theme.text.link}>
+            Tool: {sanitizeForDisplay(mcpProps.toolName)}
+          </Text>
         </Box>
       );
     }
@@ -621,20 +454,10 @@ export const ToolConfirmationMessage: React.FC<
   }, [
     confirmationDetails,
     getOptions,
-    availableBodyContentHeight,
     terminalWidth,
     handleConfirm,
     deceptiveUrlWarningText,
-    isMcpToolDetailsExpanded,
-    hasMcpToolDetails,
-    mcpToolDetailsText,
-    expandDetailsHintKey,
   ]);
-
-  const bodyOverflowDirection: 'top' | 'bottom' =
-    confirmationDetails.type === 'mcp' && isMcpToolDetailsExpanded
-      ? 'bottom'
-      : 'top';
 
   if (confirmationDetails.type === 'edit') {
     if (confirmationDetails.isModifying) {
@@ -668,13 +491,9 @@ export const ToolConfirmationMessage: React.FC<
       ) : (
         <>
           <Box flexGrow={1} flexShrink={1} overflow="hidden">
-            <MaxSizedBox
-              maxHeight={availableBodyContentHeight()}
-              maxWidth={terminalWidth}
-              overflowDirection={bodyOverflowDirection}
-            >
+            <Box flexDirection="column" maxWidth={terminalWidth}>
               {bodyContent}
-            </MaxSizedBox>
+            </Box>
           </Box>
 
           {securityWarnings && (
