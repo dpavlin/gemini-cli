@@ -2,6 +2,7 @@
 import json
 import os
 import urllib.parse
+import argparse
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -108,6 +109,7 @@ def get_sessions(project_tmp_dir, project_path):
 
             session_info = {
                 "projectPath": project_path,
+                "absolutePath": str(file_path.resolve()),
                 "id": session_id,
                 "file": file_path.stem,
                 "startTime": start_time,
@@ -116,6 +118,11 @@ def get_sessions(project_tmp_dir, project_path):
                 "displayName": display_name,
                 "firstUserMessage": first_user_message
             }
+
+            # Merge all original data from the JSON file into the session_info
+            for key, value in data.items():
+                if key not in session_info:
+                    session_info[key] = value
 
             # Deduplicate by session_id, keeping latest
             if session_id in sessions_map:
@@ -159,14 +166,22 @@ def get_checkpoints(project_tmp_dir, project_path):
             stat = file_path.stat()
             last_updated = datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat().replace("+00:00", "Z")
 
-            checkpoints.append({
+            checkpoint_info = {
                 "projectPath": project_path,
+                "absolutePath": str(file_path.resolve()),
                 "tag": tag,
                 "file": file_path.stem,
                 "messageCount": len(history),
                 "authType": auth_type,
                 "lastUpdated": last_updated
-            })
+            }
+
+            # Merge all original data from the JSON file into the checkpoint_info
+            for key, value in data.items():
+                if key not in checkpoint_info:
+                    checkpoint_info[key] = value
+
+            checkpoints.append(checkpoint_info)
 
         except Exception:
             continue
@@ -174,30 +189,36 @@ def get_checkpoints(project_tmp_dir, project_path):
     return checkpoints
 
 def main():
-    import argparse
     parser = argparse.ArgumentParser(description="List Gemini CLI sessions and checkpoints")
-    parser.add_argument("--all", action="store_true", help="List sessions for all registered projects")
+    parser.add_argument("--all", action="store_true", help="List sessions for all registered projects. Otherwise, only lists for the current project.")
     args = parser.parse_args()
 
     projects = get_projects()
     home_dir = Path.home()
+    cwd = str(Path.cwd().resolve())
 
     target_projects = {}
 
     if args.all:
         target_projects = projects
     else:
-        # User requested "both" when I asked if it should be scoped to current or all.
-        # But for CLI flexibility, we can output the current project by default and all if --all is passed,
-        # OR just always output all projects if that's what "both" meant in the user prompt.
-        # Let's always list all projects since the prompt review said "failing to provide the 'all projects' functionality."
-        target_projects = projects
+        # Try to find current project
+        for path, short_id in projects.items():
+            if os.path.normpath(path) == os.path.normpath(cwd):
+                target_projects[path] = short_id
+                break
+
+        if not target_projects:
+            output = {
+                "sessions": [],
+                "checkpoints": [],
+                "error": "No project registry found for the current directory. Use --all to list all projects."
+            }
+            print(json.dumps(output, indent=2))
+            return
 
     all_sessions = []
     all_checkpoints = []
-
-    # Also include current directory if it's not in projects.json just in case? No, rely on registry.
-    cwd = str(Path.cwd().resolve())
 
     for project_path, short_id in target_projects.items():
         project_tmp_dir = home_dir / ".gemini" / "tmp" / short_id
