@@ -5,12 +5,9 @@ import urllib.parse
 import argparse
 from datetime import datetime, timezone
 from pathlib import Path
+import math
 
 def get_projects():
-    """
-    Returns a dictionary of all projects registered in ~/.gemini/projects.json.
-    Keys are project paths, values are short IDs.
-    """
     home_dir = Path.home()
     projects_json_path = home_dir / ".gemini" / "projects.json"
 
@@ -28,7 +25,6 @@ def extract_first_user_message(messages):
         if msg.get("type") == "user":
             content = msg.get("content", "")
 
-            # Simple content parsing (ignoring complex part logic for now)
             text_parts = []
             if isinstance(content, list):
                 for p in content:
@@ -41,11 +37,9 @@ def extract_first_user_message(messages):
 
             text = " ".join(text_parts).strip()
 
-            # Filter slash commands if possible
             if not text.startswith("/") and not text.startswith("?") and text:
                 return " ".join(text.split())
 
-    # Fallback to the first user message even if it's a slash command
     for msg in messages:
         if msg.get("type") == "user":
             content = msg.get("content", "")
@@ -72,6 +66,34 @@ def parse_isoformat(time_str):
     except ValueError:
         return datetime.min.replace(tzinfo=timezone.utc)
 
+def format_relative_time(timestamp, style='long'):
+    now = datetime.now(timezone.utc)
+    time = parse_isoformat(timestamp)
+    diff_ms = (now - time).total_seconds() * 1000
+
+    diff_seconds = math.floor(diff_ms / 1000)
+    diff_minutes = math.floor(diff_seconds / 60)
+    diff_hours = math.floor(diff_minutes / 60)
+    diff_days = math.floor(diff_hours / 24)
+
+    if style == 'short':
+        if diff_seconds < 1: return 'now'
+        if diff_seconds < 60: return f"{diff_seconds}s"
+        if diff_minutes < 60: return f"{diff_minutes}m"
+        if diff_hours < 24: return f"{diff_hours}h"
+        if diff_days < 30: return f"{diff_days}d"
+        diff_months = math.floor(diff_days / 30)
+        return f"{diff_months}mo" if diff_months < 12 else f"{math.floor(diff_months / 12)}y"
+    else:
+        if diff_days > 0:
+            return f"{diff_days} day{'s' if diff_days != 1 else ''} ago"
+        elif diff_hours > 0:
+            return f"{diff_hours} hour{'s' if diff_hours != 1 else ''} ago"
+        elif diff_minutes > 0:
+            return f"{diff_minutes} minute{'s' if diff_minutes != 1 else ''} ago"
+        else:
+            return 'Just now'
+
 def get_sessions(project_tmp_dir, project_path):
     chats_dir = project_tmp_dir / "chats"
     if not chats_dir.exists() or not chats_dir.is_dir():
@@ -91,12 +113,10 @@ def get_sessions(project_tmp_dir, project_path):
             if not session_id or not isinstance(messages, list) or not start_time or not last_updated:
                 continue
 
-            # Check if it has user/assistant message
             has_meaningful_msg = any(msg.get("type") in ("user", "gemini") for msg in messages)
             if not has_meaningful_msg:
                 continue
 
-            # Skip subagent sessions
             if data.get("kind") == "subagent":
                 continue
 
@@ -105,7 +125,7 @@ def get_sessions(project_tmp_dir, project_path):
 
             display_name = summary if summary else first_user_message
             if display_name:
-                display_name = " ".join(display_name.split()) # Clean up whitespace
+                display_name = " ".join(display_name.split())
 
             session_info = {
                 "projectPath": project_path,
@@ -116,15 +136,10 @@ def get_sessions(project_tmp_dir, project_path):
                 "lastUpdated": last_updated,
                 "messageCount": len(messages),
                 "displayName": display_name,
-                "firstUserMessage": first_user_message
+                "firstUserMessage": first_user_message,
+                "summary": summary
             }
 
-            # Merge all original data from the JSON file into the session_info
-            for key, value in data.items():
-                if key not in session_info:
-                    session_info[key] = value
-
-            # Deduplicate by session_id, keeping latest
             if session_id in sessions_map:
                 existing = sessions_map[session_id]
                 existing_time = parse_isoformat(existing["lastUpdated"])
@@ -139,7 +154,6 @@ def get_sessions(project_tmp_dir, project_path):
 
     sessions = list(sessions_map.values())
 
-    # Assign indices based on start time (oldest first, like CLI does for display)
     sessions.sort(key=lambda x: parse_isoformat(x["startTime"]))
     for i, s in enumerate(sessions):
         s["index"] = i + 1
@@ -176,11 +190,6 @@ def get_checkpoints(project_tmp_dir, project_path):
                 "lastUpdated": last_updated
             }
 
-            # Merge all original data from the JSON file into the checkpoint_info
-            for key, value in data.items():
-                if key not in checkpoint_info:
-                    checkpoint_info[key] = value
-
             checkpoints.append(checkpoint_info)
 
         except Exception:
@@ -191,6 +200,7 @@ def get_checkpoints(project_tmp_dir, project_path):
 def main():
     parser = argparse.ArgumentParser(description="List Gemini CLI sessions and checkpoints")
     parser.add_argument("--all", action="store_true", help="List sessions for all registered projects. Otherwise, only lists for the current project.")
+    parser.add_argument("--json", action="store_true", help="Output in JSON format.")
     args = parser.parse_args()
 
     projects = get_projects()
@@ -202,19 +212,20 @@ def main():
     if args.all:
         target_projects = projects
     else:
-        # Try to find current project
         for path, short_id in projects.items():
             if os.path.normpath(path) == os.path.normpath(cwd):
                 target_projects[path] = short_id
                 break
 
         if not target_projects:
-            output = {
-                "sessions": [],
-                "checkpoints": [],
-                "error": "No project registry found for the current directory. Use --all to list all projects."
-            }
-            print(json.dumps(output, indent=2))
+            if args.json:
+                print(json.dumps({
+                    "sessions": [],
+                    "checkpoints": [],
+                    "error": "No previous sessions found for this project."
+                }, indent=2))
+            else:
+                print("No previous sessions found for this project.")
             return
 
     all_sessions = []
@@ -225,16 +236,45 @@ def main():
         all_sessions.extend(get_sessions(project_tmp_dir, project_path))
         all_checkpoints.extend(get_checkpoints(project_tmp_dir, project_path))
 
-    # Sort all combined sessions and checkpoints by lastUpdated descending
     all_sessions.sort(key=lambda x: parse_isoformat(x["lastUpdated"]), reverse=True)
     all_checkpoints.sort(key=lambda x: parse_isoformat(x["lastUpdated"]), reverse=True)
 
-    output = {
-        "sessions": all_sessions,
-        "checkpoints": all_checkpoints
-    }
+    if args.json:
+        output = {
+            "sessions": all_sessions,
+            "checkpoints": all_checkpoints
+        }
+        print(json.dumps(output, indent=2))
+    else:
+        # Replicate CLI output
+        # CLI orders sessions chronologically ascending when numbering them.
+        # So we'll sort the final display sessions by startTime ascending for the list.
+        display_sessions = sorted(all_sessions, key=lambda x: parse_isoformat(x["startTime"]))
+        display_checkpoints = sorted(all_checkpoints, key=lambda x: parse_isoformat(x["lastUpdated"]), reverse=True)
 
-    print(json.dumps(output, indent=2))
+        if len(display_sessions) > 0:
+            print(f"\nAvailable sessions for this project ({len(display_sessions)}):")
+            for session in display_sessions:
+                time_str = format_relative_time(session["lastUpdated"])
+                title = session["displayName"]
+                if len(title) > 100:
+                    title = title[:97] + "..."
+
+                print(f"  {session['index']}. {title} ({time_str}) [{session['id']}]")
+                print(f"     Path: {session['absolutePath']}\n")
+        else:
+            print("No previous sessions found for this project.")
+
+        if len(display_checkpoints) > 0:
+            print(f"\nAvailable checkpoints for this project ({len(display_checkpoints)}):")
+            for i, ckpt in enumerate(display_checkpoints):
+                time_str = format_relative_time(ckpt["lastUpdated"])
+                title = ckpt["tag"]
+                if len(title) > 100:
+                    title = title[:97] + "..."
+
+                print(f"  {i + 1}. {title} ({time_str})")
+                print(f"     Path: {ckpt['absolutePath']}\n")
 
 if __name__ == "__main__":
     main()
