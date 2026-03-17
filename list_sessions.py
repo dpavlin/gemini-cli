@@ -264,7 +264,8 @@ def main():
                 time_str = format_relative_time(session["lastUpdated"])
                 title = session["displayName"]
 
-                print(f"  {session['index']}. {title} ({time_str}) [{session['id']}]")
+                # "move session hash and time ago after number, before first prompt"
+                print(f"  {session['index']}. [{session['id']}] ({time_str}) {title}")
                 print(f"     Path: {session['absolutePath']}")
                 if session.get("lastUserMessage"):
                     print(f"     Last Prompt:   {session['lastUserMessage']}")
@@ -280,7 +281,7 @@ def main():
                 time_str = format_relative_time(ckpt["lastUpdated"])
                 title = ckpt["tag"]
 
-                print(f"  {i + 1}. {title} ({time_str})")
+                print(f"  {i + 1}. ({time_str}) {title}")
                 print(f"     Path: {ckpt['absolutePath']}\n")
 
 if __name__ == "__main__":
