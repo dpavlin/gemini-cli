@@ -20,44 +20,51 @@ def get_projects():
             pass
     return {}
 
-def extract_first_user_message(messages):
-    for msg in messages:
-        if msg.get("type") == "user":
-            content = msg.get("content", "")
+def extract_text_from_content(content):
+    text_parts = []
+    if isinstance(content, list):
+        for p in content:
+            if isinstance(p, dict) and "text" in p:
+                text_parts.append(p["text"])
+            elif isinstance(p, str):
+                text_parts.append(p)
+    elif isinstance(content, str):
+        text_parts.append(content)
+    return " ".join(text_parts).strip()
 
-            text_parts = []
-            if isinstance(content, list):
-                for p in content:
-                    if isinstance(p, dict) and "text" in p:
-                        text_parts.append(p["text"])
-                    elif isinstance(p, str):
-                        text_parts.append(p)
-            elif isinstance(content, str):
-                text_parts.append(content)
-
-            text = " ".join(text_parts).strip()
-
-            if not text.startswith("/") and not text.startswith("?") and text:
-                return " ".join(text.split())
+def extract_messages(messages):
+    first_user_message = "Empty conversation"
+    last_user_message = None
+    last_assistant_message = None
 
     for msg in messages:
-        if msg.get("type") == "user":
-            content = msg.get("content", "")
-            text_parts = []
-            if isinstance(content, list):
-                for p in content:
-                    if isinstance(p, dict) and "text" in p:
-                        text_parts.append(p["text"])
-                    elif isinstance(p, str):
-                        text_parts.append(p)
-            elif isinstance(content, str):
-                text_parts.append(content)
+        msg_type = msg.get("type")
+        content = msg.get("content", "")
+        text = extract_text_from_content(content)
 
-            text = " ".join(text_parts).strip()
-            if text:
-                return " ".join(text.split())
+        if msg_type == "user":
+            last_user_message = text
+            if first_user_message == "Empty conversation":
+                if not text.startswith("/") and not text.startswith("?") and text:
+                    first_user_message = " ".join(text.split())
+        elif msg_type == "gemini":
+            last_assistant_message = text
 
-    return "Empty conversation"
+    # Fallback to the very first user message even if it's a slash command
+    if first_user_message == "Empty conversation":
+        for msg in messages:
+            if msg.get("type") == "user":
+                text = extract_text_from_content(msg.get("content", ""))
+                if text:
+                    first_user_message = " ".join(text.split())
+                    break
+
+    if last_user_message:
+        last_user_message = " ".join(last_user_message.split())
+    if last_assistant_message:
+        last_assistant_message = " ".join(last_assistant_message.split())
+
+    return first_user_message, last_user_message, last_assistant_message
 
 def parse_isoformat(time_str):
     time_str = time_str.replace("Z", "+00:00")
@@ -121,7 +128,7 @@ def get_sessions(project_tmp_dir, project_path):
                 continue
 
             summary = data.get("summary")
-            first_user_message = extract_first_user_message(messages)
+            first_user_message, last_user_message, last_assistant_message = extract_messages(messages)
 
             display_name = summary if summary else first_user_message
             if display_name:
@@ -137,6 +144,8 @@ def get_sessions(project_tmp_dir, project_path):
                 "messageCount": len(messages),
                 "displayName": display_name,
                 "firstUserMessage": first_user_message,
+                "lastUserMessage": last_user_message,
+                "lastAssistantMessage": last_assistant_message,
                 "summary": summary
             }
 
@@ -246,10 +255,7 @@ def main():
         }
         print(json.dumps(output, indent=2))
     else:
-        # Replicate CLI output
-        # CLI orders sessions chronologically ascending when numbering them.
-        # So we'll sort the final display sessions by startTime ascending for the list.
-        display_sessions = sorted(all_sessions, key=lambda x: parse_isoformat(x["startTime"]))
+        display_sessions = sorted(all_sessions, key=lambda x: parse_isoformat(x["lastUpdated"]), reverse=True)
         display_checkpoints = sorted(all_checkpoints, key=lambda x: parse_isoformat(x["lastUpdated"]), reverse=True)
 
         if len(display_sessions) > 0:
@@ -257,11 +263,14 @@ def main():
             for session in display_sessions:
                 time_str = format_relative_time(session["lastUpdated"])
                 title = session["displayName"]
-                if len(title) > 100:
-                    title = title[:97] + "..."
 
                 print(f"  {session['index']}. {title} ({time_str}) [{session['id']}]")
-                print(f"     Path: {session['absolutePath']}\n")
+                print(f"     Path: {session['absolutePath']}")
+                if session.get("lastUserMessage"):
+                    print(f"     Last Prompt:   {session['lastUserMessage']}")
+                if session.get("lastAssistantMessage"):
+                    print(f"     Last Response: {session['lastAssistantMessage']}")
+                print()
         else:
             print("No previous sessions found for this project.")
 
@@ -270,8 +279,6 @@ def main():
             for i, ckpt in enumerate(display_checkpoints):
                 time_str = format_relative_time(ckpt["lastUpdated"])
                 title = ckpt["tag"]
-                if len(title) > 100:
-                    title = title[:97] + "..."
 
                 print(f"  {i + 1}. {title} ({time_str})")
                 print(f"     Path: {ckpt['absolutePath']}\n")
