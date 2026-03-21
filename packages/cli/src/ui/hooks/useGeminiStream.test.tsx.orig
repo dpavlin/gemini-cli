@@ -1069,7 +1069,6 @@ describe('useGeminiStream', () => {
       } as unknown as TrackedCompletedToolCall,
     ];
     const lowVerbositySettings = {
-      // eslint-disable-next-line @typescript-eslint/no-misused-spread
       ...mockLoadedSettings,
       merged: {
         ...mockLoadedSettings.merged,
@@ -2024,7 +2023,6 @@ describe('useGeminiStream', () => {
       );
 
       const testConfig = {
-        // eslint-disable-next-line @typescript-eslint/no-misused-spread
         ...mockConfig,
         getContentGenerator: vi.fn(),
         getContentGeneratorConfig: vi.fn(() => ({
@@ -2070,41 +2068,6 @@ describe('useGeminiStream', () => {
           'gemini-2.5-flash',
         );
       });
-    });
-
-    it('should handle SystemMessage event', async () => {
-      mockSendMessageStream.mockReturnValue(
-        (async function* () {
-          yield {
-            type: ServerGeminiEventType.SystemMessage,
-            value: 'This is a system message',
-          };
-          yield { type: ServerGeminiEventType.Content, value: 'test content' };
-          yield {
-            type: ServerGeminiEventType.Finished,
-            value: { reason: 'STOP', usageMetadata: undefined },
-          };
-        })(),
-      );
-
-      const { result } = await renderTestHook();
-
-      await act(async () => {
-        await result.current.submitQuery('test sys msg');
-      });
-
-      await waitFor(
-        () => {
-          expect(mockAddItem).toHaveBeenCalledWith(
-            {
-              type: MessageType.INFO,
-              text: 'This is a system message',
-            },
-            expect.any(Number),
-          );
-        },
-        { timeout: 5000 },
-      );
     });
   });
 
@@ -2863,7 +2826,6 @@ describe('useGeminiStream', () => {
   describe('Thought Reset', () => {
     it('should keep full thinking entries in history when mode is full', async () => {
       const fullThinkingSettings: LoadedSettings = {
-        // eslint-disable-next-line @typescript-eslint/no-misused-spread
         ...mockLoadedSettings,
         merged: {
           ...mockLoadedSettings.merged,
@@ -3286,11 +3248,6 @@ describe('useGeminiStream', () => {
           24,
         ),
       );
-
-      // Reset fake timers to startTime because the asynchronous render lifecycle
-      // (via waitUntilReady) advances the mock clock while waiting for initial
-      // components to settle.
-      vi.setSystemTime(startTime);
 
       // Submit query
       await act(async () => {

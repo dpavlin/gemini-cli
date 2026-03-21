@@ -248,11 +248,6 @@ export const useGeminiStream = (
     useStateAndRef<ThoughtSummary | null>(null);
   const [pendingHistoryItem, pendingHistoryItemRef, setPendingHistoryItem] =
     useStateAndRef<HistoryItemWithoutId | null>(null);
-  const [
-    pendingSystemMessages,
-    pendingSystemMessagesRef,
-    setPendingSystemMessages,
-  ] = useStateAndRef<HistoryItemWithoutId[]>([]);
 
   const [lastGeminiActivityTime, setLastGeminiActivityTime] =
     useState<number>(0);
@@ -553,9 +548,11 @@ export const useGeminiStream = (
       if (tc.request.name === ASK_USER_TOOL_NAME && isInProgress) {
         return false;
       }
-      // ToolGroupMessage now shows all non-canceled tools, so they are visible
-      // in pending and we need to draw the closing border for them.
-      return true;
+      return (
+        tc.status !== 'scheduled' &&
+        tc.status !== 'validating' &&
+        tc.status !== 'awaiting_approval'
+      );
     });
 
     if (
@@ -1301,19 +1298,6 @@ export const useGeminiStream = (
     ],
   );
 
-  const handleSystemMessageEvent = useCallback(
-    (systemMessage: string, _userMessageTimestamp: number) => {
-      setPendingSystemMessages([
-        ...pendingSystemMessagesRef.current,
-        {
-          type: MessageType.INFO,
-          text: systemMessage,
-        } as HistoryItemWithoutId,
-      ]);
-    },
-    [setPendingSystemMessages, pendingSystemMessagesRef],
-  );
-
   const processGeminiStreamEvents = useCallback(
     async (
       stream: AsyncIterable<GeminiEvent>,
@@ -1351,9 +1335,6 @@ export const useGeminiStream = (
             break;
           case ServerGeminiEventType.Error:
             handleErrorEvent(event.value, userMessageTimestamp);
-            break;
-          case ServerGeminiEventType.SystemMessage:
-            handleSystemMessageEvent(event.value, userMessageTimestamp);
             break;
           case ServerGeminiEventType.AgentExecutionStopped:
             handleAgentExecutionStoppedEvent(
@@ -1434,7 +1415,6 @@ export const useGeminiStream = (
       handleContextWindowWillOverflowEvent,
       handleCitationEvent,
       handleChatModelEvent,
-      handleSystemMessageEvent,
       handleAgentExecutionStoppedEvent,
       handleAgentExecutionBlockedEvent,
       addItem,
@@ -1549,12 +1529,6 @@ export const useGeminiStream = (
                 addItem(pendingHistoryItemRef.current, userMessageTimestamp);
                 setPendingHistoryItem(null);
               }
-              if (pendingSystemMessagesRef.current.length > 0) {
-                pendingSystemMessagesRef.current.forEach((item) => {
-                  addItem(item, userMessageTimestamp);
-                });
-                setPendingSystemMessages([]);
-              }
               if (loopDetectedRef.current) {
                 loopDetectedRef.current = false;
                 // Show the confirmation dialog to choose whether to disable loop detection
@@ -1644,8 +1618,6 @@ export const useGeminiStream = (
       maybeAddLowVerbosityFailureNote,
       settings.merged.billing?.overageStrategy,
       setIsResponding,
-      pendingSystemMessagesRef,
-      setPendingSystemMessages,
     ],
   );
 
@@ -1686,7 +1658,7 @@ export const useGeminiStream = (
       ) {
         let awaitingApprovalCalls = toolCalls.filter(
           (call): call is TrackedWaitingToolCall =>
-            call.status === 'awaiting_approval' && !call.request.forcedAsk,
+            call.status === 'awaiting_approval',
         );
 
         // For AUTO_EDIT mode, only approve edit tools (replace, write_file)
@@ -1908,12 +1880,10 @@ export const useGeminiStream = (
 
   const pendingHistoryItems = useMemo(
     () =>
-      [
-        pendingHistoryItem,
-        ...pendingSystemMessages,
-        ...pendingToolGroupItems,
-      ].filter((i): i is HistoryItemWithoutId => i !== undefined && i !== null),
-    [pendingHistoryItem, pendingSystemMessages, pendingToolGroupItems],
+      [pendingHistoryItem, ...pendingToolGroupItems].filter(
+        (i): i is HistoryItemWithoutId => i !== undefined && i !== null,
+      ),
+    [pendingHistoryItem, pendingToolGroupItems],
   );
 
   useEffect(() => {
